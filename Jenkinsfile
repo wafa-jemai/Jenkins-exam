@@ -17,9 +17,9 @@ pipeline {
 
     options {
         timeout(time: 30, unit: 'MINUTES')
-        retry(2)  // Automatic retry in case of temporary failure
-        disableConcurrentBuilds()  // Prevents version conflicts
-        buildDiscarder(logRotator(numToKeepStr: '30'))  // Clean up old builds
+       // retry(2)  // Automatic retry in case of temporary failure
+       // disableConcurrentBuilds()  // Prevents version conflicts
+       // buildDiscarder(logRotator(numToKeepStr: '30'))  // Clean up old builds
     }
 
     stages {
@@ -58,7 +58,7 @@ pipeline {
         stage("Build and Push Docker Image") {
             steps {
                 script {
-                    docker.build(DOCKER_IMAGE)
+                    docker.build(DOCKER_IMAGE, "-f docker/Dockerfile .")
                     docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-creds') {
                         docker.image(DOCKER_IMAGE).push()
                         // Additional tag for 'latest'

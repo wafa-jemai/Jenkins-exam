@@ -8,7 +8,7 @@ pipeline {
         
         // Private (stored in Jenkins Credentials)
         DOCKER_HUB_PAT = credentials('docker-hub-pat')  
-        KUBECONFIG = credentials('kubeconfig')  // For Kubernetes
+        KUBECONFIG = credentials('config')  // For Kubernetes
         
         // Dynamic
         GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()

@@ -6,8 +6,8 @@
  * Key Features:
  * - Centralized environment variable management.
  * - Reusable function for Docker build and push with error handling.
- * - Credential management using Jenkins' built-in `credentials()` helper.
- * - Docker Hub authentication validation.
+ * - Credential management using Jenkins' built-in `withCredentials` for PATs.
+ * - Explicit Docker Hub authentication validation using PAT.
  * - Placeholder for Kubernetes deployment and smoke tests.
  * - Post-build actions for cleanup and notifications.
  */
@@ -38,28 +38,26 @@ def buildAndPushServiceImage(serviceName, buildTag) {
         echo "🚀 Attempting to build Docker image for '${serviceName}' with tag '${buildTag}'..."
         
         // Execute the Docker build command.
-        // The '.' at the end sets the build context to the workspace root,
-        // allowing COPY commands in the Dockerfile to reference files relative to the root.
+        // Docker build uses the previously logged-in session.
         docker.build(imageFullName, "-f ${dockerfilePath} .")
         echo "✅ Docker image for '${serviceName}' built successfully: ${imageFullName}"
 
         echo "📦 Initiating push of Docker image '${imageFullName}' to registry..."
         
-        // Authenticate with Docker registry and push images
-        docker.withRegistry('https://index.docker.io/v1/', env.DOCKER_HUB_CREDENTIALS_ID) {
-            // Push the uniquely tagged image
-            docker.image(imageFullName).push()
-            echo "✅ Image ${imageFullName} pushed."
+        // Push the uniquely tagged image. This also uses the pre-established login.
+        docker.image(imageFullName).push()
+        echo "✅ Image ${imageFullName} pushed."
 
-            // Also push with a 'latest' tag for the specific service for easy access
-            // This creates a tag like "tdksoft/jenkins-devops-exams-movie-service:latest"
-            docker.image(imageFullName).push("${env.DOCKER_REPO}-${serviceName}:latest")
-            echo "✅ Image ${serviceName}:latest also pushed."
-        }
+        // Also push with a 'latest' tag for the specific service for easy access
+        // This creates a tag like "tdksoft/jenkins-devops-exams-movie-service:latest"
+        docker.image(imageFullName).push("${env.DOCKER_REPO}-${serviceName}:latest")
+        echo "✅ Image ${serviceName}:latest also pushed."
+        
         echo "🎉 Successfully pushed all tags for '${serviceName}'."
 
     } catch (Exception e) {
-        error("💥 An unexpected error occurred during build/push for service '${serviceName}': ${e.message}")
+        // Catch any error during build or push
+        error("💥 Failed to build or push Docker image for service '${serviceName}': ${e.message}")
     }
 }
 
@@ -73,15 +71,15 @@ pipeline {
     agent any
 
     // Environment variables for the pipeline.
-    // Sensitive credentials are retrieved using the `credentials()` helper.
+    // Sensitive credentials are retrieved using the `credentials()` helper *within `withCredentials` blocks*.
     environment {
         // Docker Registry Configuration
-        DOCKER_HUB_ID = "tdksoft"                               
-        DOCKER_REPO = "jenkins-devops-exams"                     
-        DOCKER_HUB_CREDENTIALS_ID = 'docker-hub-pat'             
+        DOCKER_HUB_ID = "tdksoft"                                // Your Docker Hub username or organization
+        DOCKER_REPO = "jenkins-devops-exams"                     // Base repository name on Docker Hub
+        DOCKER_HUB_PAT_CREDENTIAL_ID = 'docker-hub-pat'          // Jenkins Credential ID for Docker Hub PAT (Secret Text)
 
         // Kubernetes Configuration (placeholder for now)
-        KUBECONFIG_CREDENTIAL_ID = 'config'  // Jenkins Credential ID for Kubernetes Kubeconfig (Secret File)
+        KUBECONFIG_CREDENTIAL_ID = 'config'                      // Jenkins Credential ID for Kubernetes Kubeconfig (Secret File)
 
         // Dynamic Build Information
         GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
@@ -94,6 +92,7 @@ pipeline {
         CAST_SERVICE_NAME = "cast-service"
     }
 
+    // Pipeline options for robustness and cleanup.
     options {
         // Set a timeout for the entire pipeline to prevent hanging builds.
         timeout(time: 30, unit: 'MINUTES')
@@ -122,26 +121,28 @@ pipeline {
         }
 
         // ---------------------
-        // 2. Pre-checks: Validate External Access
+        // 2. Pre-checks: Validate Docker Hub Access
+        // This stage now explicitly logs in using the PAT (Secret Text credential).
         // ---------------------
         stage("Validate Docker Hub Access") {
             steps {
                 script {
-                    withCredentials([string(credentialsId: env.DOCKER_HUB_CREDENTIALS_ID, variable: 'DOCKER_PASSWORD')]) {
+                    // Use withCredentials to expose the Secret Text PAT as an environment variable
+                    withCredentials([string(credentialsId: env.DOCKER_HUB_PAT_CREDENTIAL_ID, variable: 'DOCKER_PAT')]) {
                         try {
-                            echo "🔑 Attempting to log in to Docker Hub and verify pull permissions..."
-                            // Log in to Docker Hub using the PAT
+                            echo "🔑 Attempting to log in to Docker Hub using Personal Access Token..."
+                            // Use the DOCKER_PAT variable for non-interactive login
                             sh """
-                                echo "${DOCKER_PASSWORD}" | docker login -u ${env.DOCKER_HUB_ID} --password-stdin
+                                echo "${DOCKER_PAT}" | docker login -u ${env.DOCKER_HUB_ID} --password-stdin
                             """
                             // Attempt a pull of a known image (or one from your repo, suppressing errors)
                             // This verifies read access. Write access is implicitly tested during push.
                             sh """
                                 docker pull ${env.DOCKER_HUB_ID}/${env.DOCKER_REPO}:latest || true
                             """
-                            echo "✅ Successfully logged in and verified Docker Hub access."
+                            echo "✅ Successfully logged in and verified Docker Hub access using PAT."
                         } catch (Exception err) {
-                            error("❌ Failed to authenticate or verify Docker Hub access: ${err.message}. Please check DOCKER_HUB_ID and DOCKER_HUB_CREDENTIALS_ID.")
+                            error("❌ Failed to authenticate or verify Docker Hub access: ${err.message}. Please check DOCKER_HUB_ID and DOCKER_HUB_PAT_CREDENTIAL_ID.")
                         }
                     }
                 }
@@ -157,6 +158,7 @@ pipeline {
                     echo "🏗️ Starting Docker image build and push for all microservices."
                     
                     // Call the reusable function for each microservice
+                    // This function will now rely on the 'docker login' performed in the previous stage.
                     buildAndPushServiceImage(env.MOVIE_SERVICE_NAME, env.BUILD_TAG)
                     buildAndPushServiceImage(env.CAST_SERVICE_NAME, env.BUILD_TAG)
                     
@@ -179,7 +181,6 @@ pipeline {
                     
                     // The following section is commented out as it requires a Kubeconfig file
                     // and a working Kubernetes cluster setup.
-                    // You would typically use withKubeConfig or writeFile to use the credential.
                     
                     /*
                     withCredentials([file(credentialsId: env.KUBECONFIG_CREDENTIAL_ID, variable: 'KUBECONFIG_PATH')]) {

@@ -1,3 +1,24 @@
+// Jenkinsfile for building and deploying Docker images for multiple services
+def buildAndPushServiceImage(serviceName, gitCommitHash) {
+    // Construct the image name for the current service
+    def imageFullName = "${DOCKER_BASE_IMAGE_NAME}-${serviceName}:${gitCommitHash}"
+    def dockerfilePath = "./${serviceName}/Dockerfile" // Path to the service's Dockerfile
+
+    echo "Building Docker image for service: ${serviceName} with tag: ${gitCommitHash}"
+
+    // Use the Jenkins Docker Pipeline plugin's build step
+    docker.build(imageFullName, "-f ${dockerfilePath} .")
+
+    echo "Pushing Docker image ${imageFullName} to registry..."
+    docker.withRegistry(DOCKER_REGISTRY, DOCKER_HUB_CREDS_ID) {
+        docker.image(imageFullName).push()
+        // Also push with 'latest' tag
+        docker.image(imageFullName).push("${serviceName}:latest") // Tagging specific service with 'latest'
+        echo "Successfully pushed ${imageFullName} and ${serviceName}:latest"
+    }
+}
+
+
 pipeline {
     agent any
 
@@ -13,10 +34,15 @@ pipeline {
         // Dynamic
         GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
         DOCKER_IMAGE = "${DOCKER_HUB_ID}/${DOCKER_REPO}:${env.BUILD_NUMBER}-${GIT_COMMIT_SHORT}"
+
+        // Services names 
+        MOVIE_SERVICE_NAME = "movie-service"
+        CAST_SERVICE_NAME = "cast-service"
+
     }
 
     options {
-        timeout(time: 30, unit: 'MINUTES')
+         timeout(time: 30, unit: 'MINUTES')
        // retry(2)  // Automatic retry in case of temporary failure
        // disableConcurrentBuilds()  // Prevents version conflicts
        // buildDiscarder(logRotator(numToKeepStr: '30'))  // Clean up old builds
@@ -58,12 +84,9 @@ pipeline {
         stage("Build and Push Docker Image") {
             steps {
                 script {
-                    docker.build(DOCKER_IMAGE, "-f ./docker/Dockerfile .")
-                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-creds') {
-                        docker.image(DOCKER_IMAGE).push()
-                        // Additional tag for 'latest'
-                        docker.image(DOCKER_IMAGE).push('latest')
-                    }
+                     // Call the function for each microservice
+                    buildAndPushServiceImage(env.MOVIE_SERVICE_NAME, env.GIT_COMMIT_HASH)
+                    buildAndPushServiceImage(env.CAST_SERVICE_NAME, env.GIT_COMMIT_HASH)              
                 }
             }
         }

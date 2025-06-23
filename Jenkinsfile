@@ -58,7 +58,7 @@ pipeline {
         stage("Build and Push Docker Image") {
             steps {
                 script {
-                    docker.build(DOCKER_IMAGE, "-f docker/Dockerfile .")
+                    docker.build(DOCKER_IMAGE, "-f ./docker/Dockerfile .")
                     docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-creds') {
                         docker.image(DOCKER_IMAGE).push()
                         // Additional tag for 'latest'

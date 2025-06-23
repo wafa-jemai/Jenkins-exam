@@ -1,6 +1,7 @@
 pipeline {
     agent {
-        label 'docker-ubuntu'  // Dedicated agent with Docker/Kubectl pre-installed
+        label 'any'  
+        // TODO Use Dedicated agent with Docker/Kubectl pre-installed
     }
 
     environment {

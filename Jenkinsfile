@@ -29,12 +29,15 @@
  * @throws Exception if Docker build or push fails.
  */
 def buildAndPushServiceImage(serviceName, buildTag) {
-    // Construct the full image name: <DockerHubID>/<serviceName>:<buildTag>
-    // Example: "tdksoft/movie-service:123-abcde"
     // Ensure serviceName is lowercase as Docker repository names are typically lowercase.
     def repositoryName = serviceName.toLowerCase()
+    
+    // Original image tag: e.g., tdksoft/movie-service:15-1d8c0c6
     def imageFullName = "${env.DOCKER_HUB_ID}/${repositoryName}:${buildTag}"
     
+    // Full image name for the 'latest' tag: e.g., tdksoft/movie-service:latest
+    def latestImageFullName = "${env.DOCKER_HUB_ID}/${repositoryName}:latest"
+
     // Path to the service's Dockerfile relative to the workspace root
     def dockerfilePath = "${serviceName}/Dockerfile"
 
@@ -42,23 +45,21 @@ def buildAndPushServiceImage(serviceName, buildTag) {
         echo "🚀 Attempting to build Docker image for '${serviceName}' with tag '${buildTag}'..."
         
         // Execute the Docker build command.
-        // The '.' at the end sets the build context to the workspace root,
-        // allowing COPY commands in the Dockerfile to reference files relative to the root.
-        // Docker build uses the previously logged-in session.
+        // This will create the image with the specific build tag (e.g., :15-1d8c0c6)
         docker.build(imageFullName, "-f ${dockerfilePath} .")
         echo "✅ Docker image for '${serviceName}' built successfully: ${imageFullName}"
 
         echo "📦 Initiating push of Docker image '${imageFullName}' to registry..."
         
-        // Push the uniquely tagged image. This relies on the pre-established login.
+        // Push the uniquely tagged image (e.g., tdksoft/movie-service:15-1d8c0c6)
         docker.image(imageFullName).push()
         echo "✅ Image ${imageFullName} pushed."
 
-        // Also push with a 'latest' tag for this specific service.
-        // This creates a tag like "tdksoft/movie-service:latest"
-        def latestTagFullName = "${env.DOCKER_HUB_ID}/${repositoryName}:latest"
-        docker.image(imageFullName).push(latestTagFullName) // Push with the full 'latest' tag name
-        echo "✅ Image ${latestTagFullName} also pushed."
+        // Now, push the *same image* with the 'latest' tag.
+        // The docker.image() object refers to the image built.
+        // We then push it *again* to the 'latest' fully qualified name.
+        docker.image(imageFullName).push(latestImageFullName) // THIS IS THE CORRECTED LINE
+        echo "✅ Image ${latestImageFullName} also pushed."
         
         echo "🎉 Successfully pushed all tags for '${serviceName}'."
 
@@ -67,7 +68,6 @@ def buildAndPushServiceImage(serviceName, buildTag) {
         error("💥 Failed to build or push Docker image for service '${serviceName}': ${e.message}")
     }
 }
-
 
 // =================================================================================================
 // DECLARATIVE PIPELINE DEFINITION

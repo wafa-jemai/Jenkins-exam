@@ -1,14 +1,22 @@
-FROM python:3.8-slim
+FROM python:3.8-slim-buster
 
+# Set the working directory inside the container
 WORKDIR /app
 
-COPY ./requirements.txt /app/requirements.txt
+COPY ./movie-service/requirements.txt /app/requirements.txt
 
-RUN apt-get update \
-    && apt-get install gcc -y \
-    && apt-get clean
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        python3-dev && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
+    apt-get purge -y build-essential python3-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /root/.cache/pip
 
-RUN pip install -r /app/requirements.txt \
-    && rm -rf /root/.cache/pip
+COPY ./movie-service/ /app/
 
-COPY . /app/
+EXPOSE 8000
+
+# Start the application using uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,8 +1,5 @@
 pipeline {
-    agent {
-        label 'any'  
-        // TODO Use Dedicated agent with Docker/Kubectl pre-installed
-    }
+    agent any
 
     environment {
         // Public

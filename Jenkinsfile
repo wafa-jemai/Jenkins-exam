@@ -62,7 +62,7 @@ pipeline {
                     docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-creds') {
                         docker.image(DOCKER_IMAGE).push()
                         // Additional tag for 'latest'
-                        // docker.image(DOCKER_IMAGE).push('latest')
+                        docker.image(DOCKER_IMAGE).push('latest')
                     }
                 }
             }
@@ -123,17 +123,19 @@ pipeline {
             // archiveArtifacts artifacts: 'k8s/logs/*.log', allowEmptyArchive: true
         }
         success {
+            /*
             slackSend(
                 color: '#00FF00',
                 message: "SUCCESS: Pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER} (${env.GIT_COMMIT_SHORT})"
-            )
+            )*/
+            sh "echo SUCCESS"
         }
         failure {
-            slackSend(
+            /*slackSend(
                 color: '#FF0000',
                 message: "FAILED: Pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Logs>)"
-            )
-            
+            )*/
+             sh "echo FAILED"
             // Automatic rollback if deployment fails
            // sh "kubectl rollout undo deployment/my-app || true"
         }

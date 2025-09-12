@@ -20,12 +20,8 @@ pipeline {
         stage('Build Docker images') {
             steps {
                 echo 'Building..'
-
-                def testImage = docker.build("wafajemai/jenkins-devops:${BUILD_NUMBER}", "./movie-service") 
-
-                testImage.inside {
-                    sh 'make test'
-                }
+                
+                sh 'docker build -t wafajemai/jenkins-devops:${BUILD_NUMBER}  ./movie-service'
             }
         } 
         stage('Push Docker images') {

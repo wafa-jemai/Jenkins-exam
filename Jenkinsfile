@@ -47,6 +47,9 @@ pipeline {
         }
 
          stage('Deploy to Prod') {
+             when {
+                    branch 'master'
+                  }
 
              input {
                     message "Deploy to production?"

@@ -79,11 +79,9 @@ pipeline {
         }
 
          stage('Deploy to Prod') {
-
+            if (env.BRANCH_NAME == 'master') {
+                echo 'I only execute on the master branch'
              
-             when {
-                    branch 'master'
-                  }
 
              input {
                     message "Deploy to production?"
@@ -99,6 +97,7 @@ pipeline {
                         helm upgrade --kubeconfig /home/ubuntu/.kube/config  --install jenkins-exam ./charts/ -f ./charts/values-prod.yaml --namespace prod
                     '''
             }
+            }     
             
         }
     }

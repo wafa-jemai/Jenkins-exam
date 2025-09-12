@@ -3,7 +3,20 @@ pipeline {
     agent any
 
     stages {
-        stage('Build') {
+
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build Docker images') {
+            steps {
+                echo 'Building..'
+            }
+        } 
+        stage('Push Docker images') {
             steps {
                 echo 'Building..'
             }
@@ -13,7 +26,7 @@ pipeline {
                 echo 'Testing..'
             }
         }
-        stage('Deploy') {
+        stage('Deploy to QA') {
             steps {
                 echo 'Deploying....'
             }

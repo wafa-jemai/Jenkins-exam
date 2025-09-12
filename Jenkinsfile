@@ -14,6 +14,16 @@ pipeline {
 
             }
         }
+
+        stage('Check branch') {
+            steps {
+              
+                script { ech '${env.BRANCH_NAME}'
+                        ech '${env.GIT_BRANCH}'
+                       }
+
+            }
+        }
         
         stage('Build Docker images') {
             steps {

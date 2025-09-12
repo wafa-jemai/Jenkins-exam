@@ -11,6 +11,13 @@ pipeline {
             steps {
               
                 checkout scm
+
+                if (CURRENT_BRANCH == 'master') {
+                      input {
+                        message "Deploy to production?"
+                        ok "Yes, deploy to production"
+                      }
+                  }
                 
             }
         }

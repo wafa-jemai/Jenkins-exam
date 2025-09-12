@@ -9,6 +9,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
+                echo 'Pulling...' + env.BRANCH_NAME
                 checkout scm
                 
             }

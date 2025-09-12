@@ -49,7 +49,7 @@ pipeline {
                 sh '''
                     kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
                     # Deploy using Helm
-                    helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace dev
+                    helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam ./charts/ -f ./charts/values-dev.yaml --namespace dev
                 '''
                  
 
@@ -62,7 +62,7 @@ pipeline {
                      sh '''
                           kubectl create namespace qa --dry-run=client -o yaml | kubectl apply -f -
                           # Deploy using Helm
-                          helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace qa
+                          helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam ./charts/ -f ./charts/values-qa.yaml --namespace qa
                      '''
             }
         }
@@ -73,7 +73,7 @@ pipeline {
                      sh '''
                         kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
                         # Deploy using Helm
-                        helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace staging
+                        helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam ./charts/ -f ./charts/values-staging.yaml --namespace staging
                      '''
             }
         }
@@ -92,7 +92,7 @@ pipeline {
                      sh '''
                         kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
                         # Deploy using Helm
-                        helm upgrade --kubeconfig /home/ubuntu/.kube/config  --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace prod
+                        helm upgrade --kubeconfig /home/ubuntu/.kube/config  --install jenkins-exam ./charts/ -f ./charts/values-prod.yaml --namespace prod
                     '''
             }
         }

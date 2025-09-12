@@ -1,6 +1,11 @@
 
 pipeline {
     agent any
+    
+    environment {
+        DOCKER_USERNAME = credentials('DOCKER_USERNAME')
+        DOCKER_PASSWORD = credentials('DOCKER_PASSWORD')
+    }
 
     stages {
 
@@ -15,6 +20,12 @@ pipeline {
         stage('Build Docker images') {
             steps {
                 echo 'Building..'
+
+                def testImage = docker.build("wafajemai/jenkins-devops:${BUILD_NUMBER}", "./movie-service") 
+
+                testImage.inside {
+                    sh 'make test'
+                }
             }
         } 
         stage('Push Docker images') {

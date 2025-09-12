@@ -26,7 +26,7 @@ pipeline {
             steps {
                 sh 'kubectl get nodes'
                 sh ' echo ${DOCKER_USERNAME_PSW} | docker login -u ${DOCKER_USERNAME_USR} --password-stdin'
-                sh 'helm list'
+                sh 'sudo helm list'
                 echo 'Testing..'
             }
         }

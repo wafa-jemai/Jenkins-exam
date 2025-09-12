@@ -88,7 +88,10 @@ pipeline {
              input {
                     message "Deploy to production?"
                     ok "Yes, deploy to production"
-                 steps {
+                 
+                 }
+
+             steps {
                 echo 'Deploying....'
                      sh '''
                         kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
@@ -96,7 +99,6 @@ pipeline {
                         helm upgrade --kubeconfig /home/ubuntu/.kube/config  --install jenkins-exam ./charts/ -f ./charts/values-prod.yaml --namespace prod
                     '''
             }
-                 }
             
         }
     }

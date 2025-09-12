@@ -60,9 +60,9 @@ pipeline {
             steps {
                 echo 'Deploying....'
                      sh '''
-                          kubectl create namespace QA --dry-run=client -o yaml | kubectl apply -f -
+                          kubectl create namespace qa --dry-run=client -o yaml | kubectl apply -f -
                           # Deploy using Helm
-                          helm upgrade --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace QA
+                          helm upgrade --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace qa
                      '''
             }
         }

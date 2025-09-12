@@ -49,7 +49,7 @@ pipeline {
                 sh '''
                     kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
                     # Deploy using Helm
-                    helm upgrade --install jenkins-exam ./charts -f ./charts/values.yaml --namespace dev
+                    helm upgrade --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace dev
                 '''
                  
 
@@ -62,7 +62,7 @@ pipeline {
                      sh '''
                           kubectl create namespace QA --dry-run=client -o yaml | kubectl apply -f -
                           # Deploy using Helm
-                          helm upgrade --install jenkins-exam ./charts -f ./charts/values.yaml --namespace QA
+                          helm upgrade --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace QA
                      '''
             }
         }
@@ -73,7 +73,7 @@ pipeline {
                      sh '''
                         kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
                         # Deploy using Helm
-                        helm upgrade --install jenkins-exam ./charts -f ./charts/values.yaml --namespace staging
+                        helm upgrade --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace staging
                      '''
             }
         }
@@ -92,7 +92,7 @@ pipeline {
                      sh '''
                         kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
                         # Deploy using Helm
-                        helm upgrade --install jenkins-exam ./charts -f ./charts/values.yaml --namespace prod
+                        helm upgrade --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace prod
                     '''
             }
         }

@@ -20,7 +20,7 @@ pipeline {
             steps {
                 echo 'Building..'
                 echo '${DOCKER_USERNAME_USR}'
-                //sh 'docker build -t wafajemai/jenkins-devops:${BUILD_NUMBER}  ./movie-service'
+            
             }
         } 
 

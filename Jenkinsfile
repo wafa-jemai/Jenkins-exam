@@ -89,14 +89,6 @@ pipeline {
                  
                  }
 
-             steps {
-                echo 'Deploying....'
-                     sh '''
-                        kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
-                        # Deploy using Helm
-                        helm upgrade --kubeconfig /home/ubuntu/.kube/config  --install jenkins-exam ./charts/ -f ./charts/values-prod.yaml --namespace prod
-                    '''
-            }
             }     
             
         }

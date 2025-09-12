@@ -17,12 +17,8 @@ pipeline {
         stage('Build Docker images') {
             steps {
                 echo 'Building..'
-
-                sh 
-                '''
-                docker build -t wafajemai/jenkins-devops:movie.${BUILD_NUMBER} ./movie-service 
-                docker build -t wafajemai/jenkins-devops:cast.${BUILD_NUMBER}  ./cast-service
-                '''
+                sh 'docker build -t wafajemai/jenkins-devops:movie.${BUILD_NUMBER} ./movie-service'
+                sh 'docker build -t wafajemai/jenkins-devops:cast.${BUILD_NUMBER}  ./cast-service'
             }
         } 
 

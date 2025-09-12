@@ -8,6 +8,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+                
             }
         }
         
@@ -23,6 +24,7 @@ pipeline {
         }
         stage('Test') {
             steps {
+                sh 'kubectl get nodes'
                 echo 'Testing..'
             }
         }

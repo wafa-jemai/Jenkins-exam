@@ -18,7 +18,7 @@ pipeline {
         } 
         stage('Push Docker images') {
             steps {
-                echo 'Building..'
+                echo 'Pushing..'
             }
         }
         stage('Test') {

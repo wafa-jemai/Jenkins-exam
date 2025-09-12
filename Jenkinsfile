@@ -28,7 +28,30 @@ pipeline {
                 echo 'Testing..'
             }
         }
-        stage('Deploy to QA') {
+        stage('Deploy to DEV') {
+            steps {
+                echo 'Deploying....'
+            }
+        }
+
+         stage('Deploy to QA') {
+            steps {
+                echo 'Deploying....'
+            }
+        }
+
+         stage('Deploy to Staging') {
+            steps {
+                echo 'Deploying....'
+            }
+        }
+
+         stage('Deploy to Prod') {
+
+             input {
+                    message "Deploy to production?"
+                    ok "Yes, deploy to production"
+                 }
             steps {
                 echo 'Deploying....'
             }

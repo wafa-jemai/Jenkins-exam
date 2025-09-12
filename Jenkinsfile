@@ -36,8 +36,8 @@ pipeline {
                 echo 'Pushing..'
                 sh '''
                 echo ${DOCKER_USERNAME_PSW} | docker login -u ${DOCKER_USERNAME_USR} --password-stdin
-                docker push wafajemai/jenkins-devops:movie${BUILD_NUMBER} 
-                docker push wafajemai/jenkins-devops:cast${BUILD_NUMBER}
+                docker push wafajemai/jenkins-devops:movie.${BUILD_NUMBER} 
+                docker push wafajemai/jenkins-devops:cast$.{BUILD_NUMBER}
                 '''
             }
         }

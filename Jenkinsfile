@@ -1,4 +1,4 @@
-
+o
 pipeline {
     agent any
     
@@ -19,8 +19,8 @@ pipeline {
         stage('Build Docker images') {
             steps {
                 echo 'Building..'
-                
-                sh 'docker build -t wafajemai/jenkins-devops:${BUILD_NUMBER}  ./movie-service'
+                echo '${DOCKER_USERNAME_USR}'
+                //sh 'docker build -t wafajemai/jenkins-devops:${BUILD_NUMBER}  ./movie-service'
             }
         } 
 

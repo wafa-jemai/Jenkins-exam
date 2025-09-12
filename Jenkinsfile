@@ -82,7 +82,7 @@ pipeline {
 
              
              when {
-                    branch "master"
+                    branch "*/master"
                   }
 
              input {

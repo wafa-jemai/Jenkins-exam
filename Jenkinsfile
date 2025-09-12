@@ -79,20 +79,14 @@ pipeline {
         }
 
          stage('Deploy to Prod') {
-            if (env.BRANCH_NAME == 'master') {
-                echo 'I only execute on the master branch'
-             
-
+          
+              
              input {
                     message "Deploy to production?"
                     ok "Yes, deploy to production"
                  
-                 }
-
-            }  
-                 
-        } 
-            
+                 }           
+        }        
         
     }
 }

@@ -23,17 +23,22 @@ pipeline {
                 sh 'docker build -t wafajemai/jenkins-devops:${BUILD_NUMBER}  ./movie-service'
             }
         } 
+
+        stage('Test infra') {
+            steps {
+                sh 'kubectl get nodes'
+                sh 'docker login -u ${DOCKER_USERNAME} --password-stdin'
+                echo 'Testing..'
+            }
+        }
+
+        
         stage('Push Docker images') {
             steps {
                 echo 'Pushing..'
             }
         }
-        stage('Test') {
-            steps {
-                sh 'kubectl get nodes'
-                echo 'Testing..'
-            }
-        }
+        
         stage('Deploy to DEV') {
             steps {
                 echo 'Deploying....'

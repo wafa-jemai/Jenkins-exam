@@ -18,9 +18,12 @@ pipeline {
         stage('Build Docker images') {
             steps {
                 echo 'Building..'
-                sh 'echo ${DOCKER_USERNAME_USR}'
-                sh 'echo ${DOCKER_USERNAME_PSW}'
-            
+
+                sh 
+                '''
+                docker build -t wafajemai/jenkins-devops:movie${BUILD_NUMBER} ./movie-service/ 
+                docker build -t wafajemai/jenkins-devops:cast${BUILD_NUMBER}  ./cast-service/
+                '''
             }
         } 
 
@@ -36,6 +39,11 @@ pipeline {
         stage('Push Docker images') {
             steps {
                 echo 'Pushing..'
+                sh '''
+                echo ${DOCKER_USERNAME_PSW} | docker login -u ${DOCKER_USERNAME_USR} --password-stdin'
+                docker push wafajemai/jenkins-devops:movie${BUILD_NUMBER} 
+                docker push wafajemai/jenkins-devops:cast${BUILD_NUMBER}
+                '''
             }
         }
         

@@ -18,7 +18,7 @@ pipeline {
         stage('Build Docker images') {
             steps {
                 echo 'Building..'
-                echo 'DOCKER_USERNAME_USR'
+                echo '${DOCKER_USERNAME_USR}'
             
             }
         } 

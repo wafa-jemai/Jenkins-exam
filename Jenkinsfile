@@ -20,8 +20,8 @@ pipeline {
 
                 sh 
                 '''
-                docker build -t wafajemai/jenkins-devops:movie${BUILD_NUMBER} ./movie-service/ 
-                docker build -t wafajemai/jenkins-devops:cast${BUILD_NUMBER}  ./cast-service/
+                docker build -t wafajemai/jenkins-devops:movie.${BUILD_NUMBER} ./movie-service 
+                docker build -t wafajemai/jenkins-devops:cast.${BUILD_NUMBER}  ./cast-service
                 '''
             }
         } 

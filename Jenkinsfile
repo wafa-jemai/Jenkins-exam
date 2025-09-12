@@ -80,12 +80,7 @@ pipeline {
 
          stage('Deploy to Prod') {
           
-              
-             input {
-                    message "Deploy to production?"
-                    ok "Yes, deploy to production"
-                 
-                 }           
+                        
         }        
         
     }

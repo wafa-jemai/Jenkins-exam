@@ -80,12 +80,13 @@ pipeline {
 
          stage('Deploy to Prod') {
           steps {
-              
+               script {
                 echo 'Deploying....'
               if (env.BRANCH_NAME == 'master') {
                 echo 'I only execute on the master branch'
               input('Do you want to proceed?')
             } 
+                 }   
                      sh '''
                           kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
                           # Deploy using Helm

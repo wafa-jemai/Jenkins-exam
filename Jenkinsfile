@@ -49,7 +49,7 @@ pipeline {
                 sh '''
                     kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
                     # Deploy using Helm
-                    helm upgrade --kubeconfig ~/.kube/config --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace dev
+                    helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam ./charts/ -f ./charts/values.yaml --namespace dev
                 '''
                  
 

@@ -19,6 +19,7 @@ pipeline {
             steps {
                 echo 'Building..'
                 sh 'echo ${DOCKER_USERNAME_USR}'
+                sh 'echo ${DOCKER_USERNAME_PSW}'
             
             }
         } 

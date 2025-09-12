@@ -45,18 +45,27 @@ pipeline {
         stage('Deploy to DEV') {
             steps {
                 echo 'Deploying....'
+                sh '''
+                kubectl create namespace DEV --dry-run=client -o yaml | kubectl apply -f -
+                # Deploy using Helm
+                helm upgrade --install jenkins-exam ./charts -f ./charts/values-dev.yaml --namespace DEV
+                '''
+                 
+
             }
         }
 
          stage('Deploy to QA') {
             steps {
                 echo 'Deploying....'
+                     sh 'kubectl create namespace QA --dry-run=client -o yaml | kubectl apply -f -'
             }
         }
 
          stage('Deploy to Staging') {
             steps {
                 echo 'Deploying....'
+                     sh 'kubectl create namespace Staging --dry-run=client -o yaml | kubectl apply -f -'
             }
         }
 
@@ -71,6 +80,7 @@ pipeline {
                  }
             steps {
                 echo 'Deploying....'
+                     sh 'kubectl create namespace PROD --dry-run=client -o yaml | kubectl apply -f -'
             }
         }
     }

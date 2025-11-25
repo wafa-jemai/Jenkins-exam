@@ -1,113 +1,160 @@
 pipeline {
     agent any
-    
+
     environment {
         DOCKER_USERNAME = credentials('DOCKER_USERNAME')
+        DOCKER_REPO = "wafajemai/jenkins-devops"
     }
 
     stages {
-
         stage('Checkout') {
             steps {
-              
                 checkout scm
-
             }
         }
 
-        
         stage('Build Docker images') {
             steps {
-                echo 'Building..'
-                sh 'docker build -t wafajemai/jenkins-devops:movie.${BUILD_NUMBER} ./movie-service'
-                sh 'docker build -t wafajemai/jenkins-devops:cast.${BUILD_NUMBER}  ./cast-service'
-            }
-        } 
-
-        stage('Test infra') {
-            steps {
-                echo 'Testing..'
-                sh 'kubectl get nodes'
-                sh ' echo ${DOCKER_USERNAME_PSW} | docker login -u ${DOCKER_USERNAME_USR} --password-stdin'
-                sh 'helm version'
-                
+                echo "Build des images Docker movie-service et cast-service..."
+                sh """
+                    docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
+                    docker build -t ${DOCKER_REPO}:cast.${BUILD_NUMBER} ./cast-service
+                """
             }
         }
 
-        
+        stage('Test infra (kubectl / helm)') {
+            steps {
+                echo "Vérification de l'infra Kubernetes et Helm..."
+                sh """
+                    kubectl get nodes
+                    helm version
+                """
+            }
+        }
+
         stage('Push Docker images') {
             steps {
-                echo 'Pushing..'
-                sh '''
-                echo ${DOCKER_USERNAME_PSW} | docker login -u ${DOCKER_USERNAME_USR} --password-stdin
-                docker push wafajemai/jenkins-devops:movie.${BUILD_NUMBER} 
-                docker push wafajemai/jenkins-devops:cast.${BUILD_NUMBER}
-                '''
+                echo "Push des images vers DockerHub..."
+                sh """
+                    echo "${DOCKER_USERNAME_PSW}" | docker login -u "${DOCKER_USERNAME_USR}" --password-stdin
+
+                    docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
+                    docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
+
+                    docker logout
+                """
             }
         }
-        
+
+        // ===================== DEV =====================
         stage('Deploy to DEV') {
             when {
                 branch 'dev'
             }
             steps {
-                echo 'Deploying....'
-                sh '''
-                    kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
-                    # Deploy using Helm
-                    helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam-dev ./charts/ -f ./charts/values-dev.yaml --namespace dev
-                '''
-                 
+                echo "Déploiement en DEV..."
+                sh """
+                    kubectl get namespace dev || kubectl create namespace dev
 
+                    helm upgrade --install jenkins-exam-dev ./charts \
+                      -f charts/values-dev.yaml \
+                      --namespace dev \
+                      --set movie.image.repository=${DOCKER_REPO} \
+                      --set movie.image.tag="movie.${BUILD_NUMBER}" \
+                      --set cast.image.repository=${DOCKER_REPO} \
+                      --set cast.image.tag="cast.${BUILD_NUMBER}"
+                """
             }
         }
 
-         stage('Deploy to QA') {
-             when {
-                 branch 'qa'
+        // ===================== QA ======================
+        stage('Deploy to QA') {
+            when {
+                branch 'qa'
             }
             steps {
-                echo 'Deploying....'
-                     sh '''
-                          kubectl create namespace qa --dry-run=client -o yaml | kubectl apply -f -
-                          # Deploy using Helm
-                          helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam-qa ./charts/ -f ./charts/values-qa.yaml --namespace qa
-                     '''
+                echo "Déploiement en QA..."
+                sh """
+                    kubectl get namespace qa || kubectl create namespace qa
+
+                    helm upgrade --install jenkins-exam-qa ./charts \
+                      -f charts/values-qa.yaml \
+                      --namespace qa \
+                      --set movie.image.repository=${DOCKER_REPO} \
+                      --set movie.image.tag="movie.${BUILD_NUMBER}" \
+                      --set cast.image.repository=${DOCKER_REPO} \
+                      --set cast.image.tag="cast.${BUILD_NUMBER}"
+                """
             }
         }
 
-         stage('Deploy to Staging') {
-             when {
-                 branch 'staging'
+        // ===================== STAGING =================
+        stage('Deploy to STAGING') {
+            when {
+                branch 'staging'
             }
             steps {
-                echo 'Deploying....'
-                     sh '''
-                        kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
-                        # Deploy using Helm
-                        helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam-stading ./charts/ -f ./charts/values-staging.yaml --namespace staging
-                     '''
+                echo "Déploiement en STAGING..."
+                sh """
+                    kubectl get namespace staging || kubectl create namespace staging
+
+                    helm upgrade --install jenkins-exam-staging ./charts \
+                      -f charts/values-staging.yaml \
+                      --namespace staging \
+                      --set movie.image.repository=${DOCKER_REPO} \
+                      --set movie.image.tag="movie.${BUILD_NUMBER}" \
+                      --set cast.image.repository=${DOCKER_REPO} \
+                      --set cast.image.tag="cast.${BUILD_NUMBER}"
+                """
             }
         }
 
-         stage('Deploy to Prod') {
-         
-               when {
+        // ===================== PROD ====================
+        stage('Approval for PROD') {
+            when {
                 branch 'master'
-                }
-            input {
-                message "Deploy to production?"
-                ok "Yes, deploy to production"
-            }  
-              steps {    
-                sh '''
-                          kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
-                          # Deploy using Helm
-                          helm upgrade --kubeconfig /home/ubuntu/.kube/config --install jenkins-exam-prod ./charts/ -f ./charts/values-prod.yaml --namespace prod
-                     '''
             }
-                        
-        }        
-        
+            steps {
+                script {
+                    input(
+                        message: 'Déployer en PRODUCTION (namespace prod) ?',
+                        ok: 'Oui, déployer'
+                    )
+                }
+            }
+        }
+
+        stage('Deploy to PROD') {
+            when {
+                branch 'master'
+            }
+            steps {
+                echo "Déploiement en PROD..."
+                sh """
+                    kubectl get namespace prod || kubectl create namespace prod
+
+                    helm upgrade --install jenkins-exam-prod ./charts \
+                      -f charts/values-prod.yaml \
+                      --namespace prod \
+                      --set movie.image.repository=${DOCKER_REPO} \
+                      --set movie.image.tag="movie.${BUILD_NUMBER}" \
+                      --set cast.image.repository=${DOCKER_REPO} \
+                      --set cast.image.tag="cast.${BUILD_NUMBER}"
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Fin du pipeline pour la branche ${env.BRANCH_NAME}, build #${env.BUILD_NUMBER}"
+        }
+        success {
+            echo "Pipeline OK ✅"
+        }
+        failure {
+            echo "Pipeline KO ❌"
+        }
     }
 }

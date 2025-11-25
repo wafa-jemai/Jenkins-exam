@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "fastapiapp.fullname" . }}
+  name: {{ include "jenkins-exam.fullname" . }}
   labels:
-    {{- include "fastapiapp.labels" . | nindent 4 }}
+    {{- include "jenkins-exam.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "fastapiapp.selectorLabels" . | nindent 6 }}
+      {{- include "jenkins-exam.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,21 +18,21 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "fastapiapp.selectorLabels" . | nindent 8 }}
+        {{- include "jenkins-exam.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
-      serviceAccountName: {{ include "fastapiapp.serviceAccountName" . }}
+      serviceAccountName: {{ include "jenkins-exam.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
 
       containers:
         - name: movie-service
           image: "{{ .Values.movie.image.repository }}:{{ .Values.movie.image.tag }}"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: {{ .Values.movie.image.pullPolicy | default "IfNotPresent" }}
           ports:
             - containerPort: 8000
           env:
@@ -41,7 +41,7 @@ spec:
 
         - name: cast-service
           image: "{{ .Values.cast.image.repository }}:{{ .Values.cast.image.tag }}"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: {{ .Values.cast.image.pullPolicy | default "IfNotPresent" }}
           ports:
             - containerPort: 8001
           env:

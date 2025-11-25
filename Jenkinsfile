@@ -47,6 +47,9 @@ pipeline {
         }
         
         stage('Deploy to DEV') {
+            when {
+                branch 'dev'
+            }
             steps {
                 echo 'Deploying....'
                 sh '''
@@ -60,6 +63,9 @@ pipeline {
         }
 
          stage('Deploy to QA') {
+             when {
+                 branch 'qa'
+            }
             steps {
                 echo 'Deploying....'
                      sh '''
@@ -71,6 +77,9 @@ pipeline {
         }
 
          stage('Deploy to Staging') {
+             when {
+                 branch 'staging'
+            }
             steps {
                 echo 'Deploying....'
                      sh '''

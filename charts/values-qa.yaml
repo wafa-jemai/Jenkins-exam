@@ -1,0 +1,11 @@
+replicaCount: 2
+
+movie:
+  image:
+    repository: wafajemai/jenkins-devops
+    tag: "movie.qa"
+
+cast:
+  image:
+    repository: wafajemai/jenkins-devops
+    tag: "cast.qa"

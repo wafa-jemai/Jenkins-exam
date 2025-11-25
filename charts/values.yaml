@@ -1,0 +1,45 @@
+replicaCount: 3
+
+movie:
+  image:
+    repository: wafajemai/jenkins-devops
+    tag: "movie.latest"
+    pullPolicy: IfNotPresent
+
+cast:
+  image:
+    repository: wafajemai/jenkins-devops
+    tag: "cast.latest"
+    pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  port: 80
+  nodePort: 30081
+  targetPort: 8000
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+resources: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

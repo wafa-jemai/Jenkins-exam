@@ -2,16 +2,21 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_USERNAME = credentials('DOCKER_USERNAME')
         DOCKER_REPO = "wafajemai/jenkins-devops"
     }
 
     stages {
+
+        /* ===================== CHECKOUT ===================== */
+
         stage('Checkout') {
             steps {
+                echo "Récupération du code source..."
                 checkout scm
             }
         }
+
+        /* ===================== BUILD DOCKER IMAGES ===================== */
 
         stage('Build Docker images') {
             steps {
@@ -23,6 +28,8 @@ pipeline {
             }
         }
 
+        /* ===================== INFRA TESTS ===================== */
+
         stage('Test infra (kubectl / helm)') {
             steps {
                 echo "Vérification de l'infra Kubernetes et Helm..."
@@ -33,21 +40,33 @@ pipeline {
             }
         }
 
+        /* ===================== PUSH DOCKER IMAGES ===================== */
+
         stage('Push Docker images') {
             steps {
                 echo "Push des images vers DockerHub..."
-                sh """
-                    echo "${DOCKER_USERNAME_PSW}" | docker login -u "${DOCKER_USERNAME_USR}" --password-stdin
 
-                    docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
-                    docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh """
+                        echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
 
-                    docker logout
-                """
+                        docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
+                        docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
+
+                        docker logout
+                    """
+                }
             }
         }
 
-        // ===================== DEV =====================
+        /* ===================== DEPLOY DEV ===================== */
+
         stage('Deploy to DEV') {
             when {
                 branch 'dev'
@@ -68,7 +87,8 @@ pipeline {
             }
         }
 
-        // ===================== QA ======================
+        /* ===================== DEPLOY QA ===================== */
+
         stage('Deploy to QA') {
             when {
                 branch 'qa'
@@ -89,7 +109,8 @@ pipeline {
             }
         }
 
-        // ===================== STAGING =================
+        /* ===================== DEPLOY STAGING ===================== */
+
         stage('Deploy to STAGING') {
             when {
                 branch 'staging'
@@ -110,7 +131,8 @@ pipeline {
             }
         }
 
-        // ===================== PROD ====================
+        /* ===================== PROD: VALIDATION ===================== */
+
         stage('Approval for PROD') {
             when {
                 branch 'master'
@@ -124,6 +146,8 @@ pipeline {
                 }
             }
         }
+
+        /* ===================== DEPLOY PROD ===================== */
 
         stage('Deploy to PROD') {
             when {
@@ -145,6 +169,8 @@ pipeline {
             }
         }
     }
+
+    /* ===================== POST ACTIONS ===================== */
 
     post {
         always {

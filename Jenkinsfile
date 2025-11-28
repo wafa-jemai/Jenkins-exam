@@ -7,15 +7,17 @@ pipeline {
 
     stages {
 
+        /* --- CHECKOUT --- */
         stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
+        /* --- BUILD IMAGES --- */
         stage("Build Docker Images") {
             steps {
-                echo "🔧 Build des images Docker..."
+                echo "Build des images Docker..."
                 sh """
                     docker build -t ${DOCKERHUB_REPO}:movie.${BUILD_NUMBER} ./movie-service
                     docker build -t ${DOCKERHUB_REPO}:cast.${BUILD_NUMBER} ./cast-service
@@ -23,9 +25,10 @@ pipeline {
             }
         }
 
+        /* --- TEST INFRA --- */
         stage("Test Infra") {
             steps {
-                echo "🔎 Test Docker / Kubectl / Helm..."
+                echo "Test Docker / Kubectl / Helm..."
                 sh """
                     docker --version
                     kubectl version --client
@@ -34,32 +37,42 @@ pipeline {
             }
         }
 
+        /* --- PUSH IMAGES --- */
         stage("Push Docker Images") {
             steps {
-                echo "📤 Push des images DockerHub..."
+                echo "Push des images DockerHub..."
                 withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub',          // <<< IMPORTANT: ton vrai credentialsId
+                    credentialsId: 'DOCKER_USERNAME',
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh """
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
                         docker push ${DOCKERHUB_REPO}:movie.${BUILD_NUMBER}
                         docker push ${DOCKERHUB_REPO}:cast.${BUILD_NUMBER}
+
                         docker logout
                     """
                 }
             }
         }
 
-        /* DEV */
+        /* ---------------------------------------------------------
+              DEPLOYMENTS — DEV / QA / STAGING / PROD
+        ----------------------------------------------------------*/
+
+        /* --- DEV --- */
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KCFG')]) {
+                withCredentials([string(credentialsId: 'kubeconfig_content', variable: 'KCFG')]) {
                     sh """
-                        export KUBECONFIG=$KCFG
+                        echo "$KCFG" > kubeconfig.tmp
+                        export KUBECONFIG=$(pwd)/kubeconfig.tmp
+
                         kubectl get ns dev || kubectl create ns dev
+
                         helm upgrade --install jenkins-exam-dev ./charts \
                           -f charts/values-dev.yaml \
                           --namespace dev \
@@ -72,14 +85,17 @@ pipeline {
             }
         }
 
-        /* QA */
+        /* --- QA --- */
         stage("Deploy QA") {
             when { branch "qa" }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KCFG')]) {
+                withCredentials([string(credentialsId: 'kubeconfig_content', variable: 'KCFG')]) {
                     sh """
-                        export KUBECONFIG=$KCFG
+                        echo "$KCFG" > kubeconfig.tmp
+                        export KUBECONFIG=$(pwd)/kubeconfig.tmp
+
                         kubectl get ns qa || kubectl create ns qa
+
                         helm upgrade --install jenkins-exam-qa ./charts \
                           -f charts/values-qa.yaml \
                           --namespace qa \
@@ -92,14 +108,17 @@ pipeline {
             }
         }
 
-        /* STAGING */
+        /* --- STAGING --- */
         stage("Deploy STAGING") {
             when { branch "staging" }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KCFG')]) {
+                withCredentials([string(credentialsId: 'kubeconfig_content', variable: 'KCFG')]) {
                     sh """
-                        export KUBECONFIG=$KCFG
+                        echo "$KCFG" > kubeconfig.tmp
+                        export KUBECONFIG=$(pwd)/kubeconfig.tmp
+
                         kubectl get ns staging || kubectl create ns staging
+
                         helm upgrade --install jenkins-exam-staging ./charts \
                           -f charts/values-staging.yaml \
                           --namespace staging \
@@ -112,21 +131,27 @@ pipeline {
             }
         }
 
-        /* PROD */
+        /* --- PROD APPROVAL --- */
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Approuvez-vous le déploiement en production ?", ok: "Déployer"
+                script {
+                    input message: "Approuvez-vous le déploiement en production ?", ok: "Déployer"
+                }
             }
         }
 
+        /* --- PROD DEPLOY --- */
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KCFG')]) {
+                withCredentials([string(credentialsId: 'kubeconfig_content', variable: 'KCFG')]) {
                     sh """
-                        export KUBECONFIG=$KCFG
+                        echo "$KCFG" > kubeconfig.tmp
+                        export KUBECONFIG=$(pwd)/kubeconfig.tmp
+
                         kubectl get ns prod || kubectl create ns prod
+
                         helm upgrade --install jenkins-exam-prod ./charts \
                           -f charts/values-prod.yaml \
                           --namespace prod \
@@ -140,9 +165,10 @@ pipeline {
         }
     }
 
+    /* --- FINAL STATUS --- */
     post {
         always {
-            echo "🔚 Fin du pipeline ${BRANCH_NAME} #${BUILD_NUMBER}"
+            echo "🔚 Fin du pipeline ${env.BRANCH_NAME} #${env.BUILD_NUMBER}"
         }
         success {
             echo "✅ Pipeline OK"

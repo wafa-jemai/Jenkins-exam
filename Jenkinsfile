@@ -38,16 +38,14 @@ pipeline {
             steps {
                 echo "📤 Push des images DockerHub..."
                 withCredentials([usernamePassword(
-                    credentialsId: 'DOCKER_USERNAME',
+                    credentialsId: 'dockerhub',          // <<< IMPORTANT: ton vrai credentialsId
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh """
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-
                         docker push ${DOCKERHUB_REPO}:movie.${BUILD_NUMBER}
                         docker push ${DOCKERHUB_REPO}:cast.${BUILD_NUMBER}
-
                         docker logout
                     """
                 }
@@ -58,8 +56,9 @@ pipeline {
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KCFG')]) {
                     sh """
+                        export KUBECONFIG=$KCFG
                         kubectl get ns dev || kubectl create ns dev
                         helm upgrade --install jenkins-exam-dev ./charts \
                           -f charts/values-dev.yaml \
@@ -77,8 +76,9 @@ pipeline {
         stage("Deploy QA") {
             when { branch "qa" }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KCFG')]) {
                     sh """
+                        export KUBECONFIG=$KCFG
                         kubectl get ns qa || kubectl create ns qa
                         helm upgrade --install jenkins-exam-qa ./charts \
                           -f charts/values-qa.yaml \
@@ -96,8 +96,9 @@ pipeline {
         stage("Deploy STAGING") {
             when { branch "staging" }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KCFG')]) {
                     sh """
+                        export KUBECONFIG=$KCFG
                         kubectl get ns staging || kubectl create ns staging
                         helm upgrade --install jenkins-exam-staging ./charts \
                           -f charts/values-staging.yaml \
@@ -111,21 +112,20 @@ pipeline {
             }
         }
 
-        /* PROD : VALIDATION AVANT DEPLOY */
+        /* PROD */
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                script {
-                    input message: "Approuvez-vous le déploiement en production ?", ok: "Déployer"
-                }
+                input message: "Approuvez-vous le déploiement en production ?", ok: "Déployer"
             }
         }
 
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KCFG')]) {
                     sh """
+                        export KUBECONFIG=$KCFG
                         kubectl get ns prod || kubectl create ns prod
                         helm upgrade --install jenkins-exam-prod ./charts \
                           -f charts/values-prod.yaml \
@@ -142,7 +142,7 @@ pipeline {
 
     post {
         always {
-            echo "🔚 Fin du pipeline ${env.BRANCH_NAME} #${env.BUILD_NUMBER}"
+            echo "🔚 Fin du pipeline ${BRANCH_NAME} #${BUILD_NUMBER}"
         }
         success {
             echo "✅ Pipeline OK"

@@ -7,17 +7,14 @@ pipeline {
 
     stages {
 
-        /* --- CHECKOUT --- */
         stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
-        /* --- BUILD IMAGES --- */
         stage("Build Docker Images") {
             steps {
-                echo "Build des images Docker..."
                 sh """
                     docker build -t ${DOCKERHUB_REPO}:movie.${BUILD_NUMBER} ./movie-service
                     docker build -t ${DOCKERHUB_REPO}:cast.${BUILD_NUMBER} ./cast-service
@@ -25,24 +22,10 @@ pipeline {
             }
         }
 
-        /* --- TEST INFRA --- */
-        stage("Test Infra") {
-            steps {
-                echo "Test Docker / Kubectl / Helm..."
-                sh """
-                    docker --version
-                    kubectl version --client
-                    helm version
-                """
-            }
-        }
-
-        /* --- PUSH IMAGES --- */
         stage("Push Docker Images") {
             steps {
-                echo "Push des images DockerHub..."
                 withCredentials([usernamePassword(
-                    credentialsId: 'DOCKER_USERNAME',
+                    credentialsId: 'dockerhub',
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
@@ -58,123 +41,58 @@ pipeline {
             }
         }
 
-        /* ---------------------------------------------------------
-              DEPLOYMENTS — DEV / QA / STAGING / PROD
-        ----------------------------------------------------------*/
-
-        /* --- DEV --- */
-        stage("Deploy DEV") {
-            when { branch "dev" }
+        /* ENV DEPLOY FUNCTION */
+        stage("Deploy Environment") {
+            when { anyOf { branch "dev"; branch "qa"; branch "staging"; branch "master" } }
             steps {
-                withCredentials([string(credentialsId: 'kubeconfig_content', variable: 'KCFG')]) {
-                    sh """
-                        echo "$KCFG" > kubeconfig.tmp
-                        export KUBECONFIG=$(pwd)/kubeconfig.tmp
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
 
-                        kubectl get ns dev || kubectl create ns dev
+                    script {
+                        def ns = ""
+                        def envFile = ""
 
-                        helm upgrade --install jenkins-exam-dev ./charts \
-                          -f charts/values-dev.yaml \
-                          --namespace dev \
-                          --set movie.image.repository=${DOCKERHUB_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKERHUB_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
-                    """
-                }
-            }
-        }
+                        if (env.BRANCH_NAME == "dev") {
+                            ns = "dev"
+                            envFile = "charts/values-dev.yaml"
+                        }
+                        if (env.BRANCH_NAME == "qa") {
+                            ns = "qa"
+                            envFile = "charts/values-qa.yaml"
+                        }
+                        if (env.BRANCH_NAME == "staging") {
+                            ns = "staging"
+                            envFile = "charts/values-staging.yaml"
+                        }
+                        if (env.BRANCH_NAME == "master") {
+                            ns = "prod"
+                            envFile = "charts/values-prod.yaml"
+                        }
 
-        /* --- QA --- */
-        stage("Deploy QA") {
-            when { branch "qa" }
-            steps {
-                withCredentials([string(credentialsId: 'kubeconfig_content', variable: 'KCFG')]) {
-                    sh """
-                        echo "$KCFG" > kubeconfig.tmp
-                        export KUBECONFIG=$(pwd)/kubeconfig.tmp
+                        sh """
+                            echo "Using kubeconfig at: $KUBECONFIG"
 
-                        kubectl get ns qa || kubectl create ns qa
+                            kubectl get ns ${ns} || kubectl create ns ${ns}
 
-                        helm upgrade --install jenkins-exam-qa ./charts \
-                          -f charts/values-qa.yaml \
-                          --namespace qa \
-                          --set movie.image.repository=${DOCKERHUB_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKERHUB_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
-                    """
-                }
-            }
-        }
-
-        /* --- STAGING --- */
-        stage("Deploy STAGING") {
-            when { branch "staging" }
-            steps {
-                withCredentials([string(credentialsId: 'kubeconfig_content', variable: 'KCFG')]) {
-                    sh """
-                        echo "$KCFG" > kubeconfig.tmp
-                        export KUBECONFIG=$(pwd)/kubeconfig.tmp
-
-                        kubectl get ns staging || kubectl create ns staging
-
-                        helm upgrade --install jenkins-exam-staging ./charts \
-                          -f charts/values-staging.yaml \
-                          --namespace staging \
-                          --set movie.image.repository=${DOCKERHUB_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKERHUB_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
-                    """
-                }
-            }
-        }
-
-        /* --- PROD APPROVAL --- */
-        stage("Approval PROD") {
-            when { branch "master" }
-            steps {
-                script {
-                    input message: "Approuvez-vous le déploiement en production ?", ok: "Déployer"
-                }
-            }
-        }
-
-        /* --- PROD DEPLOY --- */
-        stage("Deploy PROD") {
-            when { branch "master" }
-            steps {
-                withCredentials([string(credentialsId: 'kubeconfig_content', variable: 'KCFG')]) {
-                    sh """
-                        echo "$KCFG" > kubeconfig.tmp
-                        export KUBECONFIG=$(pwd)/kubeconfig.tmp
-
-                        kubectl get ns prod || kubectl create ns prod
-
-                        helm upgrade --install jenkins-exam-prod ./charts \
-                          -f charts/values-prod.yaml \
-                          --namespace prod \
-                          --set movie.image.repository=${DOCKERHUB_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKERHUB_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
-                    """
+                            helm upgrade --install jenkins-exam-${ns} ./charts \
+                                -f ${envFile} \
+                                --namespace ${ns} \
+                                --set movie.image.repository=${DOCKERHUB_REPO} \
+                                --set movie.image.tag=movie.${BUILD_NUMBER} \
+                                --set cast.image.repository=${DOCKERHUB_REPO} \
+                                --set cast.image.tag=cast.${BUILD_NUMBER}
+                        """
+                    }
                 }
             }
         }
     }
 
-    /* --- FINAL STATUS --- */
     post {
-        always {
-            echo "🔚 Fin du pipeline ${env.BRANCH_NAME} #${env.BUILD_NUMBER}"
-        }
         success {
-            echo "✅ Pipeline OK"
+            echo "Pipeline OK"
         }
         failure {
-            echo "❌ Pipeline KO"
+            echo "Pipeline KO"
         }
     }
 }

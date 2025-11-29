@@ -2,19 +2,22 @@ pipeline {
     agent any
 
     environment {
+      
+        DOCKER_CRED = credentials('dockerhub')
+
         DOCKER_REPO = "wafajemai/jenkins-devops"
     }
 
     stages {
 
-        /* ===================== CHECKOUT ===================== */
+        /* ----------------------- CHECKOUT ----------------------- */
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        /* ===================== BUILD IMAGES ===================== */
+        /* ----------------------- BUILD IMAGES ----------------------- */
         stage('Build Docker images') {
             steps {
                 echo "Build des images Docker..."
@@ -25,141 +28,146 @@ pipeline {
             }
         }
 
-        /* ===================== TEST INFRA ===================== */
-        stage('Test infra (kubectl / helm)') {
+        /* ----------------------- TEST INFRA K8S ----------------------- */
+        stage('Test Infra (kubectl/helm)') {
             steps {
-                echo "Vérification de l'infra (Docker, kubectl, helm)..."
+                echo "Test de l'infrastructure Kubernetes & Helm"
+                configFileProvider([configFile(fileId: 'kubeconfig', targetLocation: 'kubeconfig')]) {
+                    sh """
+                        export KUBECONFIG=kubeconfig
+                        kubectl get nodes
+                        helm version
+                    """
+                }
+            }
+        }
+
+        /* ----------------------- PUSH DOCKER IMAGES ----------------------- */
+        stage('Push Docker Images') {
+            steps {
+                echo "Push des images vers DockerHub..."
+
                 sh """
-                    docker --version
-                    kubectl version --client
-                    helm version
+                    echo "${DOCKER_CRED_PSW}" | docker login -u "${DOCKER_CRED_USR}" --password-stdin
+
+                    docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
+                    docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
+
+                    docker logout
                 """
             }
         }
 
-        /* ===================== PUSH IMAGES ===================== */
-        stage('Push Docker images') {
-            steps {
-                echo "Push des images DockerHub..."
-
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'DOCKER_USERNAME',
-                        usernameVariable: 'DOCKER_USERNAME_USR',
-                        passwordVariable: 'DOCKER_USERNAME_PSW'
-                    )
-                ]) {
-                    sh """
-                        echo "${DOCKER_USERNAME_PSW}" | docker login -u "${DOCKER_USERNAME_USR}" --password-stdin
-
-                        docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
-                        docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
-
-                        docker logout
-                    """
-                }
-            }
-        }
-
-        /* ===================== DEPLOY DEV ===================== */
-        stage('Deploy DEV') {
+        /* ============================================================
+            DEPLOY DEV — branch = dev
+           ============================================================ */
+        stage('Deploy to DEV') {
             when { branch 'dev' }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    echo "Déploiement en DEV..."
+                echo "Déploiement en DEV..."
+                configFileProvider([configFile(fileId: 'kubeconfig', targetLocation: 'kubeconfig')]) {
                     sh """
+                        export KUBECONFIG=kubeconfig
                         kubectl get namespace dev || kubectl create namespace dev
 
                         helm upgrade --install jenkins-exam-dev ./charts \
-                          -f charts/values-dev.yaml \
-                          --namespace dev \
-                          --set movie.image.repository=${DOCKER_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKER_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
+                            -f charts/values-dev.yaml \
+                            --namespace dev \
+                            --set movie.image.repository=${DOCKER_REPO} \
+                            --set movie.image.tag="movie.${BUILD_NUMBER}" \
+                            --set cast.image.repository=${DOCKER_REPO} \
+                            --set cast.image.tag="cast.${BUILD_NUMBER}"
                     """
                 }
             }
         }
 
-        /* ===================== DEPLOY QA ===================== */
-        stage('Deploy QA') {
+        /* ============================================================
+            DEPLOY QA — branch = qa
+           ============================================================ */
+        stage('Deploy to QA') {
             when { branch 'qa' }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    echo "Déploiement en QA..."
+                echo "Déploiement en QA..."
+                configFileProvider([configFile(fileId: 'kubeconfig', targetLocation: 'kubeconfig')]) {
                     sh """
+                        export KUBECONFIG=kubeconfig
                         kubectl get namespace qa || kubectl create namespace qa
 
                         helm upgrade --install jenkins-exam-qa ./charts \
-                          -f charts/values-qa.yaml \
-                          --namespace qa \
-                          --set movie.image.repository=${DOCKER_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKER_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
+                            -f charts/values-qa.yaml \
+                            --namespace qa \
+                            --set movie.image.repository=${DOCKER_REPO} \
+                            --set movie.image.tag="movie.${BUILD_NUMBER}" \
+                            --set cast.image.repository=${DOCKER_REPO} \
+                            --set cast.image.tag="cast.${BUILD_NUMBER}"
                     """
                 }
             }
         }
 
-        /* ===================== DEPLOY STAGING ===================== */
-        stage('Deploy STAGING') {
+        /* ============================================================
+            DEPLOY STAGING — branch = staging
+           ============================================================ */
+        stage('Deploy to STAGING') {
             when { branch 'staging' }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    echo "Déploiement en STAGING..."
+                echo "Déploiement en STAGING..."
+                configFileProvider([configFile(fileId: 'kubeconfig', targetLocation: 'kubeconfig')]) {
                     sh """
+                        export KUBECONFIG=kubeconfig
                         kubectl get namespace staging || kubectl create namespace staging
 
                         helm upgrade --install jenkins-exam-staging ./charts \
-                          -f charts/values-staging.yaml \
-                          --namespace staging \
-                          --set movie.image.repository=${DOCKER_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKER_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
+                            -f charts/values-staging.yaml \
+                            --namespace staging \
+                            --set movie.image.repository=${DOCKER_REPO} \
+                            --set movie.image.tag="movie.${BUILD_NUMBER}" \
+                            --set cast.image.repository=${DOCKER_REPO} \
+                            --set cast.image.tag="cast.${BUILD_NUMBER}"
                     """
                 }
             }
         }
 
-        /* ===================== APPROVAL PROD ===================== */
-        stage('Approval PROD') {
+        /* ============================================================
+            PROD — branch = master + APPROVAL
+           ============================================================ */
+
+        stage('Approval for PROD') {
             when { branch 'master' }
             steps {
                 script {
-                    input message: "Confirmer le déploiement en PRODUCTION ?", ok: "Déployer"
+                    input message: "Déployer en PRODUCTION ?", ok: "Déployer"
                 }
             }
         }
 
-        /* ===================== DEPLOY PROD ===================== */
-        stage('Deploy PROD') {
+        stage('Deploy to PROD') {
             when { branch 'master' }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    echo "Déploiement en PROD..."
+                echo "Déploiement en PROD..."
+                configFileProvider([configFile(fileId: 'kubeconfig', targetLocation: 'kubeconfig')]) {
                     sh """
+                        export KUBECONFIG=kubeconfig
                         kubectl get namespace prod || kubectl create namespace prod
 
                         helm upgrade --install jenkins-exam-prod ./charts \
-                          -f charts/values-prod.yaml \
-                          --namespace prod \
-                          --set movie.image.repository=${DOCKER_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKER_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
+                            -f charts/values-prod.yaml \
+                            --namespace prod \
+                            --set movie.image.repository=${DOCKER_REPO} \
+                            --set movie.image.tag="movie.${BUILD_NUMBER}" \
+                            --set cast.image.repository=${DOCKER_REPO} \
+                            --set cast.image.tag="cast.${BUILD_NUMBER}"
                     """
                 }
             }
         }
     }
 
-    /* ===================== POST ===================== */
     post {
         always {
-            echo "Fin du pipeline (${env.BRANCH_NAME}) – Build #${env.BUILD_NUMBER}"
+            echo "Fin du pipeline pour ${env.BRANCH_NAME} — build #${env.BUILD_NUMBER}"
         }
         success {
             echo "✅ Pipeline OK"

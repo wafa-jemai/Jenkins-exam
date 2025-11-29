@@ -2,89 +2,170 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB = credentials('dockerhub')          
-        DOCKER_USERNAME = "${DOCKERHUB_USR}"         
-        DOCKER_PASSWORD = "${DOCKERHUB_PSW}"
+        DOCKER_REPO = "wafajemai/jenkins-devops"
     }
 
     stages {
 
+        /* ===================== CHECKOUT ===================== */
         stage('Checkout') {
             steps {
                 checkout scm
-                echo "Branch: ${env.BRANCH_NAME}"
             }
         }
 
-        stage('Build App') {
+        /* ===================== BUILD IMAGES ===================== */
+        stage('Build Docker images') {
             steps {
-                echo "=== BUILD APPLICATION ==="
-                sh '''
-                    echo "Compilation / build logic here"
-                '''
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                echo "=== UNIT TESTS ==="
-                sh '''
-                    echo "Here you run your tests"
-                '''
-            }
-        }
-
-        stage('Docker Build') {
-            when { anyOf { branch 'dev'; branch 'qa'; branch 'staging'; branch 'master' } }
-            steps {
-                echo "=== DOCKER BUILD ==="
-
+                echo "Build des images Docker..."
                 sh """
-                    echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                    docker build -t wafa-jemai/jenkins-exam:${env.BRANCH_NAME}-${env.BUILD_NUMBER} .
-                    docker push wafa-jemai/jenkins-exam:${env.BRANCH_NAME}-${env.BUILD_NUMBER}
+                    docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
+                    docker build -t ${DOCKER_REPO}:cast.${BUILD_NUMBER} ./cast-service
                 """
             }
         }
 
-        stage('Deploy to K3s') {
-            when {
-                anyOf {
-                    branch 'dev'
-                    branch 'qa'
-                    branch 'staging'
-                    branch 'master'
-                }
-            }
+        /* ===================== TEST INFRA ===================== */
+        stage('Test infra (kubectl / helm)') {
             steps {
-                echo "=== DEPLOY TO K3S ==="
+                echo "Vérification de l'infra (Docker, kubectl, helm)..."
+                sh """
+                    docker --version
+                    kubectl version --client
+                    helm version
+                """
+            }
+        }
 
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+        /* ===================== PUSH IMAGES ===================== */
+        stage('Push Docker images') {
+            steps {
+                echo "Push des images DockerHub..."
 
-                    sh '''
-                        echo "[STEP] Checking cluster access"
-                        kubectl get nodes
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'DOCKER_USERNAME',
+                        usernameVariable: 'DOCKER_USERNAME_USR',
+                        passwordVariable: 'DOCKER_USERNAME_PSW'
+                    )
+                ]) {
+                    sh """
+                        echo "${DOCKER_USERNAME_PSW}" | docker login -u "${DOCKER_USERNAME_USR}" --password-stdin
 
-                        echo "[STEP] Updating Helm release"
-                        helm upgrade --install jenkins-exam ./helm \
-                          --namespace default \
-                          -f helm/values-${BRANCH_NAME}.yaml \
-                          --set image.tag=${BRANCH_NAME}-${BUILD_NUMBER}
+                        docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
+                        docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
 
-                        echo "[STEP] Deployment DONE"
-                    '''
+                        docker logout
+                    """
                 }
             }
         }
 
+        /* ===================== DEPLOY DEV ===================== */
+        stage('Deploy DEV') {
+            when { branch 'dev' }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    echo "Déploiement en DEV..."
+                    sh """
+                        kubectl get namespace dev || kubectl create namespace dev
+
+                        helm upgrade --install jenkins-exam-dev ./charts \
+                          -f charts/values-dev.yaml \
+                          --namespace dev \
+                          --set movie.image.repository=${DOCKER_REPO} \
+                          --set movie.image.tag=movie.${BUILD_NUMBER} \
+                          --set cast.image.repository=${DOCKER_REPO} \
+                          --set cast.image.tag=cast.${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+
+        /* ===================== DEPLOY QA ===================== */
+        stage('Deploy QA') {
+            when { branch 'qa' }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    echo "Déploiement en QA..."
+                    sh """
+                        kubectl get namespace qa || kubectl create namespace qa
+
+                        helm upgrade --install jenkins-exam-qa ./charts \
+                          -f charts/values-qa.yaml \
+                          --namespace qa \
+                          --set movie.image.repository=${DOCKER_REPO} \
+                          --set movie.image.tag=movie.${BUILD_NUMBER} \
+                          --set cast.image.repository=${DOCKER_REPO} \
+                          --set cast.image.tag=cast.${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+
+        /* ===================== DEPLOY STAGING ===================== */
+        stage('Deploy STAGING') {
+            when { branch 'staging' }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    echo "Déploiement en STAGING..."
+                    sh """
+                        kubectl get namespace staging || kubectl create namespace staging
+
+                        helm upgrade --install jenkins-exam-staging ./charts \
+                          -f charts/values-staging.yaml \
+                          --namespace staging \
+                          --set movie.image.repository=${DOCKER_REPO} \
+                          --set movie.image.tag=movie.${BUILD_NUMBER} \
+                          --set cast.image.repository=${DOCKER_REPO} \
+                          --set cast.image.tag=cast.${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+
+        /* ===================== APPROVAL PROD ===================== */
+        stage('Approval PROD') {
+            when { branch 'master' }
+            steps {
+                script {
+                    input message: "Confirmer le déploiement en PRODUCTION ?", ok: "Déployer"
+                }
+            }
+        }
+
+        /* ===================== DEPLOY PROD ===================== */
+        stage('Deploy PROD') {
+            when { branch 'master' }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    echo "Déploiement en PROD..."
+                    sh """
+                        kubectl get namespace prod || kubectl create namespace prod
+
+                        helm upgrade --install jenkins-exam-prod ./charts \
+                          -f charts/values-prod.yaml \
+                          --namespace prod \
+                          --set movie.image.repository=${DOCKER_REPO} \
+                          --set movie.image.tag=movie.${BUILD_NUMBER} \
+                          --set cast.image.repository=${DOCKER_REPO} \
+                          --set cast.image.tag=cast.${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
     }
 
+    /* ===================== POST ===================== */
     post {
+        always {
+            echo "Fin du pipeline (${env.BRANCH_NAME}) – Build #${env.BUILD_NUMBER}"
+        }
         success {
-            echo "Pipeline for ${env.BRANCH_NAME} SUCCESS ✔️"
+            echo "✅ Pipeline OK"
         }
         failure {
-            echo "Pipeline for ${env.BRANCH_NAME} FAILED ❌"
+            echo "❌ Pipeline KO"
         }
     }
 }

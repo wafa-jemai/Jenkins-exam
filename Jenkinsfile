@@ -3,164 +3,122 @@ pipeline {
 
     environment {
         DOCKER_REPO = "wafajemai/jenkins-devops"
+        KUBECONFIG = "/var/jenkins_home/kubeconfig"
+        PATH = "/usr/local/bin:/usr/bin:/bin"
     }
 
     stages {
 
-        /* ===================== CHECKOUT ===================== */
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        /* ===================== BUILD IMAGES ===================== */
-        stage('Build Docker images') {
+        stage('Build Docker Images') {
             steps {
-                echo "Build des images Docker..."
                 sh """
-                    docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
-                    docker build -t ${DOCKER_REPO}:cast.${BUILD_NUMBER} ./cast-service
+                  docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
+                  docker build -t ${DOCKER_REPO}:cast.${BUILD_NUMBER} ./cast-service
                 """
             }
         }
 
-        /* ===================== TEST INFRA ===================== */
-        stage('Test infra (kubectl / helm)') {
+        stage('Test Infra') {
             steps {
-                echo "Vérification de l'infra (Docker, kubectl, helm)..."
                 sh """
-                    docker --version
-                    kubectl version --client
-                    helm version
+                  /usr/local/bin/kubectl version --client
+                  /usr/local/bin/helm version
                 """
             }
         }
 
-        /* ===================== PUSH IMAGES ===================== */
-        stage('Push Docker images') {
+        stage('Push Docker Images') {
             steps {
-                echo "Push des images DockerHub..."
-
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'DOCKER_USERNAME',
-                        usernameVariable: 'DOCKER_USERNAME_USR',
-                        passwordVariable: 'DOCKER_USERNAME_PSW'
-                    )
-                ]) {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
                     sh """
-                        echo "${DOCKER_USERNAME_PSW}" | docker login -u "${DOCKER_USERNAME_USR}" --password-stdin
-
-                        docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
-                        docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
-
-                        docker logout
+                      echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                      docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
+                      docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
+                      docker logout
                     """
                 }
             }
         }
 
-        /* ===================== DEPLOY DEV ===================== */
+        /* ================= DEV ================= */
         stage('Deploy DEV') {
             when { branch 'dev' }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    echo "Déploiement en DEV..."
-                    sh """
-                        kubectl get namespace dev || kubectl create namespace dev
+                sh """
+                  /usr/local/bin/kubectl get ns dev || /usr/local/bin/kubectl create ns dev
 
-                        helm upgrade --install jenkins-exam-dev ./charts \
-                          -f charts/values-dev.yaml \
-                          --namespace dev \
-                          --set movie.image.repository=${DOCKER_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKER_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
-                    """
-                }
+                  /usr/local/bin/helm upgrade --install jenkins-exam-dev ./charts \
+                    -f charts/values-dev.yaml \
+                    -n dev \
+                    --set movie.image.repository=${DOCKER_REPO} \
+                    --set movie.image.tag=movie.${BUILD_NUMBER} \
+                    --set cast.image.repository=${DOCKER_REPO} \
+                    --set cast.image.tag=cast.${BUILD_NUMBER}
+                """
             }
         }
 
-        /* ===================== DEPLOY QA ===================== */
+        /* ================= QA ================= */
         stage('Deploy QA') {
             when { branch 'qa' }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    echo "Déploiement en QA..."
-                    sh """
-                        kubectl get namespace qa || kubectl create namespace qa
+                sh """
+                  /usr/local/bin/kubectl get ns qa || /usr/local/bin/kubectl create ns qa
 
-                        helm upgrade --install jenkins-exam-qa ./charts \
-                          -f charts/values-qa.yaml \
-                          --namespace qa \
-                          --set movie.image.repository=${DOCKER_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKER_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
-                    """
-                }
+                  /usr/local/bin/helm upgrade --install jenkins-exam-qa ./charts \
+                    -f charts/values-qa.yaml \
+                    -n qa
+                """
             }
         }
 
-        /* ===================== DEPLOY STAGING ===================== */
+        /* ================= STAGING ================= */
         stage('Deploy STAGING') {
             when { branch 'staging' }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    echo "Déploiement en STAGING..."
-                    sh """
-                        kubectl get namespace staging || kubectl create namespace staging
+                sh """
+                  /usr/local/bin/kubectl get ns staging || /usr/local/bin/kubectl create ns staging
 
-                        helm upgrade --install jenkins-exam-staging ./charts \
-                          -f charts/values-staging.yaml \
-                          --namespace staging \
-                          --set movie.image.repository=${DOCKER_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKER_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
-                    """
-                }
+                  /usr/local/bin/helm upgrade --install jenkins-exam-staging ./charts \
+                    -f charts/values-staging.yaml \
+                    -n staging
+                """
             }
         }
 
-        /* ===================== APPROVAL PROD ===================== */
+        /* ================= PROD ================= */
         stage('Approval PROD') {
             when { branch 'master' }
             steps {
-                script {
-                    input message: "Confirmer le déploiement en PRODUCTION ?", ok: "Déployer"
-                }
+                input message: 'Valider le déploiement PROD ?', ok: 'Déployer'
             }
         }
 
-        /* ===================== DEPLOY PROD ===================== */
         stage('Deploy PROD') {
             when { branch 'master' }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    echo "Déploiement en PROD..."
-                    sh """
-                        kubectl get namespace prod || kubectl create namespace prod
+                sh """
+                  /usr/local/bin/kubectl get ns prod || /usr/local/bin/kubectl create ns prod
 
-                        helm upgrade --install jenkins-exam-prod ./charts \
-                          -f charts/values-prod.yaml \
-                          --namespace prod \
-                          --set movie.image.repository=${DOCKER_REPO} \
-                          --set movie.image.tag=movie.${BUILD_NUMBER} \
-                          --set cast.image.repository=${DOCKER_REPO} \
-                          --set cast.image.tag=cast.${BUILD_NUMBER}
-                    """
-                }
+                  /usr/local/bin/helm upgrade --install jenkins-exam-prod ./charts \
+                    -f charts/values-prod.yaml \
+                    -n prod
+                """
             }
         }
     }
 
-    /* ===================== POST ===================== */
     post {
-        always {
-            echo "Fin du pipeline (${env.BRANCH_NAME}) – Build #${env.BUILD_NUMBER}"
-        }
         success {
             echo "✅ Pipeline OK"
         }

@@ -109,3 +109,49 @@ pipeline {
                         -f charts/values-staging.yaml \
                         --namespace staging \
                         --set movie.image.repository=${DOCKER_REPO} \
+                        --set movie.image.tag=movie.${BUILD_NUMBER} \
+                        --set cast.image.repository=${DOCKER_REPO} \
+                        --set cast.image.tag=cast.${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        /* ================= PROD ================= */
+        stage("Approval PROD") {
+            when { branch "master" }
+            steps {
+                input message: "Valider le déploiement en PRODUCTION ?", ok: "Déployer PROD"
+            }
+        }
+
+        stage("Deploy PROD") {
+            when { branch "master" }
+            steps {
+                echo "Déploiement en PROD"
+                sh '''
+                    kubectl get ns prod || kubectl create ns prod
+
+                    helm upgrade --install jenkins-exam-prod ./charts \
+                        -f charts/values-prod.yaml \
+                        --namespace prod \
+                        --set movie.image.repository=${DOCKER_REPO} \
+                        --set movie.image.tag=movie.${BUILD_NUMBER} \
+                        --set cast.image.repository=${DOCKER_REPO} \
+                        --set cast.image.tag=cast.${BUILD_NUMBER}
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Fin du pipeline — branche ${BRANCH_NAME}, build #${BUILD_NUMBER}"
+        }
+        success {
+            echo "✅ PIPELINE OK"
+        }
+        failure {
+            echo "❌ PIPELINE KO"
+        }
+    }
+}

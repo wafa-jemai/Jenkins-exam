@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_REPO = "wafajemai/jenkins-devops"
-        KUBECONFIG  = "/var/lib/jenkins/.kube/config"
+        KUBECONFIG = "/var/lib/jenkins/.kube/config"
     }
 
     stages {
@@ -17,8 +17,8 @@ pipeline {
         stage("Build Docker Images") {
             steps {
                 sh """
-                    docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
-                    docker build -t ${DOCKER_REPO}:cast.${BUILD_NUMBER} ./cast-service
+                    docker build -t ${DOCKER_REPO}:movie-${BUILD_NUMBER} movie-service
+                    docker build -t ${DOCKER_REPO}:cast-${BUILD_NUMBER} cast-service
                 """
             }
         }
@@ -35,7 +35,6 @@ pipeline {
         }
 
         stage("Push Docker Images") {
-            when { branch "dev" }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub',
@@ -44,8 +43,8 @@ pipeline {
                 )]) {
                     sh """
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
-                        docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
+                        docker push ${DOCKER_REPO}:movie-${BUILD_NUMBER}
+                        docker push ${DOCKER_REPO}:cast-${BUILD_NUMBER}
                         docker logout
                     """
                 }
@@ -61,33 +60,9 @@ pipeline {
                       --namespace dev \
                       --create-namespace \
                       --set movie.image.repository=${DOCKER_REPO} \
-                      --set movie.image.tag=movie.${BUILD_NUMBER} \
+                      --set movie.image.tag=movie-${BUILD_NUMBER} \
                       --set cast.image.repository=${DOCKER_REPO} \
-                      --set cast.image.tag=cast.${BUILD_NUMBER}
-                """
-            }
-        }
-
-        stage("Deploy QA") {
-            when { branch "qa" }
-            steps {
-                sh """
-                    helm upgrade --install jenkins-exam-qa ./charts \
-                      -f charts/values-qa.yaml \
-                      --namespace qa \
-                      --create-namespace
-                """
-            }
-        }
-
-        stage("Deploy STAGING") {
-            when { branch "staging" }
-            steps {
-                sh """
-                    helm upgrade --install jenkins-exam-staging ./charts \
-                      -f charts/values-staging.yaml \
-                      --namespace staging \
-                      --create-namespace
+                      --set cast.image.tag=cast-${BUILD_NUMBER}
                 """
             }
         }
@@ -106,18 +81,25 @@ pipeline {
                     helm upgrade --install jenkins-exam-prod ./charts \
                       -f charts/values-prod.yaml \
                       --namespace prod \
-                      --create-namespace
+                      --create-namespace \
+                      --set movie.image.repository=${DOCKER_REPO} \
+                      --set movie.image.tag=movie-${BUILD_NUMBER} \
+                      --set cast.image.repository=${DOCKER_REPO} \
+                      --set cast.image.tag=cast-${BUILD_NUMBER}
                 """
             }
         }
     }
 
     post {
+        always {
+            echo "Fin du pipeline — ${BRANCH_NAME} — build ${BUILD_NUMBER}"
+        }
         success {
-            echo "✅ PIPELINE OK - ${BRANCH_NAME}"
+            echo "✅ PIPELINE OK"
         }
         failure {
-            echo "❌ PIPELINE KO - ${BRANCH_NAME}"
+            echo "❌ PIPELINE KO"
         }
     }
 }

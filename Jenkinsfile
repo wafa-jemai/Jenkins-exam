@@ -3,70 +3,59 @@ pipeline {
 
     environment {
         DOCKER_REPO = "wafajemai/jenkins-devops"
-        KUBECONFIG = "/home/jenkins/.kube/config"
+        KUBECONFIG = "/home/ubuntu/.kube/config"
     }
 
     stages {
 
-        /* ================= CHECKOUT ================= */
         stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
-        /* ================= BUILD ================= */
-        stage("Build Docker Images") {
-            steps {
-                echo "Build des images Docker"
-                sh '''
-                    docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
-                    docker build -t ${DOCKER_REPO}:cast.${BUILD_NUMBER} ./cast-service
-                '''
-            }
-        }
-
-        /* ================= TEST INFRA ================= */
         stage("Test Infra") {
             steps {
-                echo "Vérification Docker / Kubectl / Helm"
-                sh '''
-                    docker --version
+                sh """
+                    whoami
                     kubectl version --client
-                    helm version
                     kubectl get nodes
-                '''
+                    helm version
+                """
             }
         }
 
-        /* ================= PUSH ================= */
-        stage("Push Docker Images") {
+        stage("Build Docker Images") {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'DOCKER_USERNAME',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-                    sh '''
+                sh """
+                    docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
+                    docker build -t ${DOCKER_REPO}:cast.${BUILD_NUMBER} ./cast-service
+                """
+            }
+        }
+
+        stage("Push Docker Images") {
+            when { branch "dev" }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh """
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
                         docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
                         docker logout
-                    '''
+                    """
                 }
             }
         }
 
-        /* ================= DEV ================= */
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
-                echo "Déploiement en DEV"
-                sh '''
-                    kubectl get ns dev || kubectl create ns dev
-
+                sh """
                     helm upgrade --install jenkins-exam-dev ./charts \
                         -f charts/values-dev.yaml \
                         --namespace dev \
@@ -74,63 +63,21 @@ pipeline {
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
                         --set cast.image.repository=${DOCKER_REPO} \
                         --set cast.image.tag=cast.${BUILD_NUMBER}
-                '''
+                """
             }
         }
 
-        /* ================= QA ================= */
-        stage("Deploy QA") {
-            when { branch "qa" }
-            steps {
-                echo "Déploiement en QA"
-                sh '''
-                    kubectl get ns qa || kubectl create ns qa
-
-                    helm upgrade --install jenkins-exam-qa ./charts \
-                        -f charts/values-qa.yaml \
-                        --namespace qa \
-                        --set movie.image.repository=${DOCKER_REPO} \
-                        --set movie.image.tag=movie.${BUILD_NUMBER} \
-                        --set cast.image.repository=${DOCKER_REPO} \
-                        --set cast.image.tag=cast.${BUILD_NUMBER}
-                '''
-            }
-        }
-
-        /* ================= STAGING ================= */
-        stage("Deploy STAGING") {
-            when { branch "staging" }
-            steps {
-                echo "Déploiement en STAGING"
-                sh '''
-                    kubectl get ns staging || kubectl create ns staging
-
-                    helm upgrade --install jenkins-exam-staging ./charts \
-                        -f charts/values-staging.yaml \
-                        --namespace staging \
-                        --set movie.image.repository=${DOCKER_REPO} \
-                        --set movie.image.tag=movie.${BUILD_NUMBER} \
-                        --set cast.image.repository=${DOCKER_REPO} \
-                        --set cast.image.tag=cast.${BUILD_NUMBER}
-                '''
-            }
-        }
-
-        /* ================= PROD ================= */
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Valider le déploiement en PRODUCTION ?", ok: "Déployer PROD"
+                input message: "Valider le déploiement en PRODUCTION ?"
             }
         }
 
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
-                echo "Déploiement en PROD"
-                sh '''
-                    kubectl get ns prod || kubectl create ns prod
-
+                sh """
                     helm upgrade --install jenkins-exam-prod ./charts \
                         -f charts/values-prod.yaml \
                         --namespace prod \
@@ -138,7 +85,7 @@ pipeline {
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
                         --set cast.image.repository=${DOCKER_REPO} \
                         --set cast.image.tag=cast.${BUILD_NUMBER}
-                '''
+                """
             }
         }
     }

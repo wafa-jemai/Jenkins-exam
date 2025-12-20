@@ -14,8 +14,17 @@ pipeline {
             }
         }
 
+        stage("Test Infra") {
+            steps {
+                sh """
+                    docker --version
+                    kubectl get nodes
+                    helm version
+                """
+            }
+        }
+
         stage("Build Docker Images") {
-            when { branch "dev" }
             steps {
                 sh """
                     docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
@@ -46,13 +55,11 @@ pipeline {
             when { branch "dev" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp \
+                    helm upgrade --install fastapiapp ./charts \
                         --namespace dev \
                         --create-namespace \
                         -f charts/values-dev.yaml \
-                        --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
-                        --set cast.image.repository=${DOCKER_REPO} \
                         --set cast.image.tag=cast.${BUILD_NUMBER}
                 """
             }
@@ -62,13 +69,11 @@ pipeline {
             when { branch "qa" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp \
+                    helm upgrade --install fastapiapp ./charts \
                         --namespace qa \
                         --create-namespace \
                         -f charts/values-qa.yaml \
-                        --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
-                        --set cast.image.repository=${DOCKER_REPO} \
                         --set cast.image.tag=cast.${BUILD_NUMBER}
                 """
             }
@@ -78,13 +83,11 @@ pipeline {
             when { branch "staging" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp \
+                    helm upgrade --install fastapiapp ./charts \
                         --namespace staging \
                         --create-namespace \
                         -f charts/values-staging.yaml \
-                        --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
-                        --set cast.image.repository=${DOCKER_REPO} \
                         --set cast.image.tag=cast.${BUILD_NUMBER}
                 """
             }
@@ -93,7 +96,7 @@ pipeline {
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Valider déploiement en PROD ?", ok: "Déployer"
+                input message: "Déployer en PROD ?", ok: "Oui, déployer"
             }
         }
 
@@ -101,13 +104,11 @@ pipeline {
             when { branch "master" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp \
+                    helm upgrade --install fastapiapp ./charts \
                         --namespace prod \
                         --create-namespace \
                         -f charts/values-prod.yaml \
-                        --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
-                        --set cast.image.repository=${DOCKER_REPO} \
                         --set cast.image.tag=cast.${BUILD_NUMBER}
                 """
             }
@@ -116,10 +117,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline success"
+            echo "🚀 Pipeline terminé avec succès sur ${BRANCH_NAME}"
         }
         failure {
-            echo "❌ Pipeline failed"
+            echo "❌ Pipeline échoué sur ${BRANCH_NAME}"
         }
     }
 }

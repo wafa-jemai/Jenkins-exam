@@ -8,24 +8,27 @@ pipeline {
 
     stages {
 
+        /* ===== CHECKOUT ===== */
         stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
+        /* ===== TEST INFRA ===== */
         stage("Test Infra") {
             steps {
                 sh """
-                    whoami
+                    echo "User: $(whoami)"
                     docker --version
+                    helm version
                     kubectl version --client
                     kubectl get nodes
-                    helm version
                 """
             }
         }
 
+        /* ===== BUILD DOCKER IMAGES ===== */
         stage("Build Docker Images") {
             steps {
                 sh """
@@ -35,8 +38,9 @@ pipeline {
             }
         }
 
+        /* ===== PUSH DOCKERHUB ===== */
         stage("Push Docker Images") {
-            when { branch "dev" }
+            when { branch pattern: "(dev|qa|staging|master)", comparator: "REGEXP" }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub',
@@ -53,13 +57,13 @@ pipeline {
             }
         }
 
+        /* ===== DEV ===== */
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
                 sh """
                     helm upgrade --install jenkins-exam-dev ./charts \
-                        --namespace dev \
-                        --create-namespace \
+                        --namespace dev --create-namespace \
                         -f charts/values-dev.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -69,20 +73,53 @@ pipeline {
             }
         }
 
-        stage("Approval PROD") {
-            when { branch "master" }
+        /* ===== QA ===== */
+        stage("Deploy QA") {
+            when { branch "qa" }
             steps {
-                input message: "Valider le déploiement PROD ?", ok: "Déployer"
+                sh """
+                    helm upgrade --install jenkins-exam-qa ./charts \
+                        --namespace qa --create-namespace \
+                        -f charts/values-qa.yaml \
+                        --set movie.image.repository=${DOCKER_REPO} \
+                        --set movie.image.tag=movie.${BUILD_NUMBER} \
+                        --set cast.image.repository=${DOCKER_REPO} \
+                        --set cast.image.tag=cast.${BUILD_NUMBER}
+                """
             }
         }
 
+        /* ===== STAGING ===== */
+        stage("Deploy STAGING") {
+            when { branch "staging" }
+            steps {
+                sh """
+                    helm upgrade --install jenkins-exam-staging ./charts \
+                        --namespace staging --create-namespace \
+                        -f charts/values-staging.yaml \
+                        --set movie.image.repository=${DOCKER_REPO} \
+                        --set movie.image.tag=movie.${BUILD_NUMBER} \
+                        --set cast.image.repository=${DOCKER_REPO} \
+                        --set cast.image.tag=cast.${BUILD_NUMBER}
+                """
+            }
+        }
+
+        /* ===== PROD – APPROVAL ===== */
+        stage("Approval PROD") {
+            when { branch "master" }
+            steps {
+                input message: "Déployer en PROD ?", ok: "Déployer"
+            }
+        }
+
+        /* ===== PROD ===== */
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
                 sh """
                     helm upgrade --install jenkins-exam-prod ./charts \
-                        --namespace prod \
-                        --create-namespace \
+                        --namespace prod --create-namespace \
                         -f charts/values-prod.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -95,10 +132,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline réussi sur ${BRANCH_NAME}"
+            echo "✅ Pipeline réussi — environnement ${BRANCH_NAME}"
         }
         failure {
-            echo "❌ Pipeline échoué sur ${BRANCH_NAME}"
+            echo "❌ Pipeline échoué — environnement ${BRANCH_NAME}"
         }
     }
 }

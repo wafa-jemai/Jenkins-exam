@@ -79,7 +79,7 @@ pipeline {
             when { branch "qa" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-qa ./charts \
+                    helm upgrade --install fastapiapp ./charts/fastapiapp
                         --namespace qa \
                         --create-namespace \
                         -f charts/values-qa.yaml \
@@ -96,7 +96,7 @@ pipeline {
             when { branch "staging" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-staging ./charts \
+                    helm upgrade --install fastapiapp ./charts/fastapiapp
                         --namespace staging \
                         --create-namespace \
                         -f charts/values-staging.yaml \
@@ -121,7 +121,7 @@ pipeline {
             when { branch "master" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-prod ./charts \
+                    helm upgrade --install fastapiapp ./charts/fastapiapp
                         --namespace prod \
                         --create-namespace \
                         -f charts/values-prod.yaml \

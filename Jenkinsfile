@@ -36,7 +36,6 @@ pipeline {
         }
 
         stage("Push Docker Images") {
-            when { branch "dev" }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub',
@@ -101,7 +100,7 @@ pipeline {
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Valider le déploiement en Production ?", ok: "Déployer"
+                input message: "Valider le déploiement PROD ?", ok: "Déployer"
             }
         }
 
@@ -123,7 +122,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline réussi sur ${BRANCH_NAME}"
+            echo "🚀 Pipeline réussi sur ${BRANCH_NAME}"
         }
         failure {
             echo "❌ Pipeline échoué sur ${BRANCH_NAME}"

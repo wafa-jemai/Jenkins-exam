@@ -8,27 +8,26 @@ pipeline {
 
     stages {
 
-        /* ===================== CHECKOUT ===================== */
+        /* ========================= CHECKOUT ========================= */
         stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
-        /* ===================== INFRA TEST ===================== */
+        /* ========================= TEST INFRA ======================= */
         stage("Test Infra") {
             steps {
                 sh """
                     whoami
                     docker --version
-                    kubectl version --client
-                    helm version
                     kubectl get nodes
+                    helm version
                 """
             }
         }
 
-        /* ===================== DOCKER BUILD ===================== */
+        /* ========================= BUILD IMAGES ===================== */
         stage("Build Docker Images") {
             steps {
                 sh """
@@ -38,7 +37,7 @@ pipeline {
             }
         }
 
-        /* ===================== DOCKER PUSH ===================== */
+        /* ========================= PUSH IMAGES ====================== */
         stage("Push Docker Images") {
             when { branch "dev" }
             steps {
@@ -57,12 +56,12 @@ pipeline {
             }
         }
 
-        /* ===================== DEPLOY DEV ===================== */
+        /* ========================= DEPLOY DEV ======================== */
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp \
+                    helm upgrade --install fastapiapp ./charts \
                         --namespace dev \
                         --create-namespace \
                         -f charts/values-dev.yaml \
@@ -74,12 +73,12 @@ pipeline {
             }
         }
 
-        /* ===================== DEPLOY QA ===================== */
+        /* ========================= DEPLOY QA ========================= */
         stage("Deploy QA") {
             when { branch "qa" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp \
+                    helm upgrade --install fastapiapp ./charts \
                         --namespace qa \
                         --create-namespace \
                         -f charts/values-qa.yaml \
@@ -91,12 +90,12 @@ pipeline {
             }
         }
 
-        /* ===================== DEPLOY STAGING ===================== */
+        /* ========================= DEPLOY STAGING ==================== */
         stage("Deploy STAGING") {
             when { branch "staging" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp \
+                    helm upgrade --install fastapiapp ./charts \
                         --namespace staging \
                         --create-namespace \
                         -f charts/values-staging.yaml \
@@ -108,7 +107,7 @@ pipeline {
             }
         }
 
-        /* ===================== PROD APPROVAL ===================== */
+        /* ========================= APPROVAL PROD ===================== */
         stage("Approval PROD") {
             when { branch "master" }
             steps {
@@ -116,12 +115,12 @@ pipeline {
             }
         }
 
-        /* ===================== DEPLOY PROD ===================== */
+        /* ========================= DEPLOY PROD ======================= */
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp \
+                    helm upgrade --install fastapiapp ./charts \
                         --namespace prod \
                         --create-namespace \
                         -f charts/values-prod.yaml \

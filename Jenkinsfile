@@ -61,7 +61,7 @@ pipeline {
             when { branch "dev" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-dev ./charts \
+                    helm upgrade --install fastapiapp ./charts/fastapiapp \
                         --namespace dev --create-namespace \
                         -f charts/values-dev.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \

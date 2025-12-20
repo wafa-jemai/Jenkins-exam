@@ -21,15 +21,18 @@ pipeline {
                 sh """
                     echo "User: $(whoami)"
                     docker --version
-                    helm version
                     kubectl version --client
                     kubectl get nodes
+                    helm version
                 """
             }
         }
 
-        /* ===== BUILD DOCKER IMAGES ===== */
+        /* ===== BUILD ===== */
         stage("Build Docker Images") {
+            when { 
+                anyOf { branch "dev"; branch "qa"; branch "staging"; branch "master" }
+            }
             steps {
                 sh """
                     docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
@@ -38,9 +41,11 @@ pipeline {
             }
         }
 
-        /* ===== PUSH DOCKERHUB ===== */
+        /* ===== PUSH ===== */
         stage("Push Docker Images") {
-            when { branch pattern: "(dev|qa|staging|master)", comparator: "REGEXP" }
+            when { 
+                anyOf { branch "dev"; branch "qa"; branch "staging"; branch "master" }
+            }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub',
@@ -63,7 +68,8 @@ pipeline {
             steps {
                 sh """
                     helm upgrade --install jenkins-exam-dev ./charts \
-                        --namespace dev --create-namespace \
+                        --namespace dev \
+                        --create-namespace \
                         -f charts/values-dev.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -79,7 +85,8 @@ pipeline {
             steps {
                 sh """
                     helm upgrade --install jenkins-exam-qa ./charts \
-                        --namespace qa --create-namespace \
+                        --namespace qa \
+                        --create-namespace \
                         -f charts/values-qa.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -95,7 +102,8 @@ pipeline {
             steps {
                 sh """
                     helm upgrade --install jenkins-exam-staging ./charts \
-                        --namespace staging --create-namespace \
+                        --namespace staging \
+                        --create-namespace \
                         -f charts/values-staging.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -105,21 +113,22 @@ pipeline {
             }
         }
 
-        /* ===== PROD – APPROVAL ===== */
+        /* ===== PROD VALIDATION ===== */
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Déployer en PROD ?", ok: "Déployer"
+                input message: "Valider le déploiement PROD ?", ok: "Déployer"
             }
         }
 
-        /* ===== PROD ===== */
+        /* ===== PROD DEPLOY ===== */
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
                 sh """
                     helm upgrade --install jenkins-exam-prod ./charts \
-                        --namespace prod --create-namespace \
+                        --namespace prod \
+                        --create-namespace \
                         -f charts/values-prod.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -132,10 +141,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline réussi — environnement ${BRANCH_NAME}"
+            echo "✅ Pipeline réussi sur ${BRANCH_NAME}"
         }
         failure {
-            echo "❌ Pipeline échoué — environnement ${BRANCH_NAME}"
+            echo "❌ Pipeline échoué sur ${BRANCH_NAME}"
         }
     }
 }

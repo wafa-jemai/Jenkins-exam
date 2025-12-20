@@ -8,28 +8,14 @@ pipeline {
 
     stages {
 
-        /* ========== CHECKOUT ========== */
         stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
-        /* ========== TEST INFRA ========== */
-        stage("Test Infra") {
-            steps {
-                sh """
-                    whoami
-                    docker --version
-                    kubectl version --client
-                    kubectl get nodes
-                    helm version
-                """
-            }
-        }
-
-        /* ========== BUILD DOCKER ========== */
         stage("Build Docker Images") {
+            when { branch "dev" }
             steps {
                 sh """
                     docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
@@ -38,7 +24,6 @@ pipeline {
             }
         }
 
-        /* ========== PUSH DOCKER ======== */
         stage("Push Docker Images") {
             when { branch "dev" }
             steps {
@@ -57,7 +42,6 @@ pipeline {
             }
         }
 
-        /* ========== DEPLOY DEV ========= */
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
@@ -74,12 +58,11 @@ pipeline {
             }
         }
 
-        /* ========== DEPLOY QA ========= */
         stage("Deploy QA") {
             when { branch "qa" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp
+                    helm upgrade --install fastapiapp ./charts/fastapiapp \
                         --namespace qa \
                         --create-namespace \
                         -f charts/values-qa.yaml \
@@ -91,12 +74,11 @@ pipeline {
             }
         }
 
-        /* ========== DEPLOY STAGING ===== */
         stage("Deploy STAGING") {
             when { branch "staging" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp
+                    helm upgrade --install fastapiapp ./charts/fastapiapp \
                         --namespace staging \
                         --create-namespace \
                         -f charts/values-staging.yaml \
@@ -108,20 +90,18 @@ pipeline {
             }
         }
 
-        /* ========== APPROVAL PROD ====== */
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Valider le déploiement PROD ?", ok: "Déployer"
+                input message: "Valider déploiement en PROD ?", ok: "Déployer"
             }
         }
 
-        /* ========== DEPLOY PROD ========= */
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts/fastapiapp
+                    helm upgrade --install fastapiapp ./charts/fastapiapp \
                         --namespace prod \
                         --create-namespace \
                         -f charts/values-prod.yaml \
@@ -136,10 +116,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline success on ${BRANCH_NAME}"
+            echo "✅ Pipeline success"
         }
         failure {
-            echo "❌ Pipeline failed on ${BRANCH_NAME}"
+            echo "❌ Pipeline failed"
         }
     }
 }

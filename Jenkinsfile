@@ -2,26 +2,15 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_REPO = "wafajemai/jenkins-devops"
-        KUBECONFIG = "/var/lib/jenkins/.kube/config"
+        DOCKER_REPO   = "wafajemai/jenkins-devops"
+        RELEASE_NAME  = "jenkins-exam"
+        KUBECONFIG    = "/var/lib/jenkins/.kube/config"
     }
 
     stages {
 
         stage("Checkout") {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage("Test Infra") {
-            steps {
-                sh """
-                    docker --version
-                    kubectl get nodes
-                    helm version
-                """
-            }
+            steps { checkout scm }
         }
 
         stage("Build Docker Images") {
@@ -45,7 +34,6 @@ pipeline {
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
                         docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
-                        docker logout
                     """
                 }
             }
@@ -55,7 +43,7 @@ pipeline {
             when { branch "dev" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-dev ./charts \
+                    helm upgrade --install ${RELEASE_NAME}-dev ./charts \
                         --namespace dev \
                         --create-namespace \
                         -f charts/values-dev.yaml \
@@ -71,7 +59,7 @@ pipeline {
             when { branch "qa" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-qa ./charts \
+                    helm upgrade --install ${RELEASE_NAME}-qa ./charts \
                         --namespace qa \
                         --create-namespace \
                         -f charts/values-qa.yaml \
@@ -87,7 +75,7 @@ pipeline {
             when { branch "staging" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-staging ./charts \
+                    helm upgrade --install ${RELEASE_NAME}-staging ./charts \
                         --namespace staging \
                         --create-namespace \
                         -f charts/values-staging.yaml \
@@ -110,7 +98,7 @@ pipeline {
             when { branch "master" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-prod ./charts \
+                    helm upgrade --install ${RELEASE_NAME}-prod ./charts \
                         --namespace prod \
                         --create-namespace \
                         -f charts/values-prod.yaml \
@@ -124,11 +112,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "✔️ Pipeline success : ${BRANCH_NAME}"
-        }
-        failure {
-            echo "❌ Pipeline failed : ${BRANCH_NAME}"
-        }
+        success { echo "✔️ Pipeline SUCCESS ${BRANCH_NAME}" }
+        failure { echo "❌ Pipeline FAIL ${BRANCH_NAME}" }
     }
 }

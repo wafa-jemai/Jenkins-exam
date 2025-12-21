@@ -3,7 +3,7 @@ kind: Pod
 metadata:
   name: "{{ include "jenkins-exam.fullname" . }}-test-connection"
   labels:
-    {{- include "fastapiapp.labels" . | nindent 4 }}
+    {{- include "jenkins-exam.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": test
 spec:

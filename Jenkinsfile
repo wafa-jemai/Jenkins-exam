@@ -8,14 +8,22 @@ pipeline {
 
     stages {
 
-        /*********** CHECKOUT ***********/
         stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
-        /*********** BUILD ***********/
+        stage("Test Infra") {
+            steps {
+                sh """
+                    docker --version
+                    kubectl get nodes
+                    helm version
+                """
+            }
+        }
+
         stage("Build Docker Images") {
             steps {
                 sh """
@@ -25,8 +33,8 @@ pipeline {
             }
         }
 
-        /*********** PUSH ***********/
         stage("Push Docker Images") {
+            when { branch "dev" }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub',
@@ -43,7 +51,6 @@ pipeline {
             }
         }
 
-        /*********** DEPLOY DEV ***********/
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
@@ -60,7 +67,6 @@ pipeline {
             }
         }
 
-        /*********** DEPLOY QA ***********/
         stage("Deploy QA") {
             when { branch "qa" }
             steps {
@@ -77,7 +83,6 @@ pipeline {
             }
         }
 
-        /*********** DEPLOY STAGING ***********/
         stage("Deploy STAGING") {
             when { branch "staging" }
             steps {
@@ -94,15 +99,13 @@ pipeline {
             }
         }
 
-        /*********** APPROVAL PROD ***********/
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Valider le déploiement PROD ?", ok: "Déployer PROD"
+                input message: "Déployer en PROD ?", ok: "OUI"
             }
         }
 
-        /*********** DEPLOY PROD ***********/
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
@@ -122,10 +125,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline success on ${BRANCH_NAME}"
+            echo "✔️ Pipeline success : ${BRANCH_NAME}"
         }
         failure {
-            echo "❌ Pipeline failed on ${BRANCH_NAME}"
+            echo "❌ Pipeline failed : ${BRANCH_NAME}"
         }
     }
 }

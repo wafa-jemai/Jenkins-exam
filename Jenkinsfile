@@ -3,20 +3,22 @@ pipeline {
 
     environment {
         DOCKER_REPO = "wafajemai/jenkins-devops"
-        KUBECONFIG = "/var/lib/jenkins/.kube/config"
+        KUBECONFIG  = "/var/lib/jenkins/.kube/config"
+        CHART_PATH  = "./charts"
     }
 
     stages {
 
-        /* CHECKOUT */
         stage("Checkout") {
-            steps { checkout scm }
+            steps {
+                checkout scm
+            }
         }
 
-        /* TEST INFRA */
         stage("Test Infra") {
             steps {
                 sh """
+                    whoami
                     docker --version
                     kubectl get nodes
                     helm version
@@ -24,8 +26,8 @@ pipeline {
             }
         }
 
-        /* BUILD DOCKER */
         stage("Build Docker Images") {
+            when { branch "dev" }
             steps {
                 sh """
                     docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
@@ -34,33 +36,28 @@ pipeline {
             }
         }
 
-        /* PUSH DOCKER */
         stage("Push Docker Images") {
             when { branch "dev" }
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                usernameVariable: 'DOCKER_USER',
+                passwordVariable: 'DOCKER_PASS')]) {
+
                     sh """
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push ${DOCKER_REPO}:movie.${BUILD_NUMBER}
                         docker push ${DOCKER_REPO}:cast.${BUILD_NUMBER}
-                        docker logout
                     """
                 }
             }
         }
 
-        /* DEPLOY DEV */
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-dev ./charts \
-                        --namespace dev \
-                        --create-namespace \
+                    helm upgrade --install jenkins-exam-dev ${CHART_PATH} \
+                        --namespace dev --create-namespace \
                         -f charts/values-dev.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -70,14 +67,12 @@ pipeline {
             }
         }
 
-        /* DEPLOY QA */
         stage("Deploy QA") {
             when { branch "qa" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-qa ./charts \
-                        --namespace qa \
-                        --create-namespace \
+                    helm upgrade --install jenkins-exam-qa ${CHART_PATH} \
+                        --namespace qa --create-namespace \
                         -f charts/values-qa.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -87,14 +82,12 @@ pipeline {
             }
         }
 
-        /* DEPLOY STAGING */
         stage("Deploy STAGING") {
             when { branch "staging" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-staging ./charts \
-                        --namespace staging \
-                        --create-namespace \
+                    helm upgrade --install jenkins-exam-staging ${CHART_PATH} \
+                        --namespace staging --create-namespace \
                         -f charts/values-staging.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -104,22 +97,19 @@ pipeline {
             }
         }
 
-        /* APPROVAL PROD */
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Déployer PROD ?", ok: "Déployer"
+                input message: "Valider la mise en production ?", ok: "Déployer"
             }
         }
 
-        /* DEPLOY PROD */
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
                 sh """
-                    helm upgrade --install jenkins-exam-prod ./charts \
-                        --namespace prod \
-                        --create-namespace \
+                    helm upgrade --install jenkins-exam-prod ${CHART_PATH} \
+                        --namespace prod --create-namespace \
                         -f charts/values-prod.yaml \
                         --set movie.image.repository=${DOCKER_REPO} \
                         --set movie.image.tag=movie.${BUILD_NUMBER} \
@@ -131,7 +121,11 @@ pipeline {
     }
 
     post {
-        success { echo "✅ Pipeline OK" }
-        failure { echo "❌ Pipeline KO" }
+        success {
+            echo "✔️ Pipeline OK sur : ${BRANCH_NAME}"
+        }
+        failure {
+            echo "❌ Pipeline KO sur : ${BRANCH_NAME}"
+        }
     }
 }

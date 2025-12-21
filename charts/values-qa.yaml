@@ -15,3 +15,7 @@ service:
   port: 80
   nodePort: 30082
   targetPort: 8000
+
+env:
+  - name: DATABASE_URL
+    value: "sqlite:///./app/api/db.sqlite3"

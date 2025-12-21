@@ -8,28 +8,11 @@ pipeline {
 
     stages {
 
-        /* ===== CHECKOUT ===== */
         stage("Checkout") {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
-        /* ===== TEST INFRA ===== */
-        stage("Test Infra") {
-            steps {
-                sh """
-                    whoami
-                    docker --version
-                    kubectl version --client
-                    kubectl get nodes
-                    helm version
-                """
-            }
-        }
-
-        /* ===== BUILD DOCKER ===== */
-        stage("Build Images") {
+        stage("Build Docker Images") {
             steps {
                 sh """
                     docker build -t ${DOCKER_REPO}:movie.${BUILD_NUMBER} ./movie-service
@@ -38,8 +21,7 @@ pipeline {
             }
         }
 
-        /* ===== DOCKER PUSH ===== */
-        stage("Push Images") {
+        stage("Push Docker Images") {
             when { branch "dev" }
             steps {
                 withCredentials([usernamePassword(
@@ -57,7 +39,6 @@ pipeline {
             }
         }
 
-        /* ===== DEPLOY DEV ===== */
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
@@ -74,7 +55,6 @@ pipeline {
             }
         }
 
-        /* ===== DEPLOY QA ===== */
         stage("Deploy QA") {
             when { branch "qa" }
             steps {
@@ -91,7 +71,6 @@ pipeline {
             }
         }
 
-        /* ===== DEPLOY STAGING ===== */
         stage("Deploy STAGING") {
             when { branch "staging" }
             steps {
@@ -108,15 +87,13 @@ pipeline {
             }
         }
 
-        /* ===== APPROVAL PROD ===== */
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Valider déploiement PRODUCTION ?", ok: "Déployer"
+                input message: "Valider le déploiement PROD ?", ok: "Déployer"
             }
         }
 
-        /* ===== DEPLOY PROD ===== */
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
@@ -135,11 +112,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "✅ Pipeline success ${BRANCH_NAME}"
-        }
-        failure {
-            echo "❌ Pipeline failed ${BRANCH_NAME}"
-        }
+        success { echo "✅ Pipeline success on ${BRANCH_NAME}" }
+        failure { echo "❌ Pipeline failed on ${BRANCH_NAME}" }
     }
 }

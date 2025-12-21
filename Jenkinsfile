@@ -8,27 +8,25 @@ pipeline {
 
     stages {
 
-        /* ===== CHECKOUT ===== */
+        /* ========== CHECKOUT ========== */
         stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
-        /* ===== TEST INFRA ===== */
+        /* ========== TEST INFRA ========== */
         stage("Test Infra") {
             steps {
                 sh """
-                    whoami
                     docker --version
-                    kubectl version --client
                     kubectl get nodes
                     helm version
                 """
             }
         }
 
-        /* ===== BUILD DOCKER ===== */
+        /* ========== BUILD DOCKER ========== */
         stage("Build Docker Images") {
             steps {
                 sh """
@@ -38,9 +36,9 @@ pipeline {
             }
         }
 
-        /* ===== PUSH DOCKER ===== */
+        /* ========== PUSH DOCKER ======== */
         stage("Push Docker Images") {
-            when { branch "dev" }
+            when { branch "dev" }          
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub',
@@ -57,12 +55,12 @@ pipeline {
             }
         }
 
-        /* ===== DEPLOY DEV ===== */
+        /* ========== DEPLOY DEV ========= */
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts \
+                    helm upgrade --install jenkins-exam-dev ./charts/jenkins-exam \
                         --namespace dev \
                         --create-namespace \
                         -f charts/values-dev.yaml \
@@ -74,12 +72,12 @@ pipeline {
             }
         }
 
-        /* ===== DEPLOY QA ===== */
+        /* ========== DEPLOY QA ========= */
         stage("Deploy QA") {
             when { branch "qa" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts \
+                    helm upgrade --install jenkins-exam-qa ./charts/jenkins-exam \
                         --namespace qa \
                         --create-namespace \
                         -f charts/values-qa.yaml \
@@ -91,12 +89,12 @@ pipeline {
             }
         }
 
-        /* ===== DEPLOY STAGING ===== */
+        /* ========== DEPLOY STAGING ===== */
         stage("Deploy STAGING") {
             when { branch "staging" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts \
+                    helm upgrade --install jenkins-exam-staging ./charts/jenkins-exam \
                         --namespace staging \
                         --create-namespace \
                         -f charts/values-staging.yaml \
@@ -108,7 +106,7 @@ pipeline {
             }
         }
 
-        /* ===== VALIDATION PROD ===== */
+        /* ========== APPROVAL PROD ====== */
         stage("Approval PROD") {
             when { branch "master" }
             steps {
@@ -116,12 +114,12 @@ pipeline {
             }
         }
 
-        /* ===== DEPLOY PROD ===== */
+        /* ========== DEPLOY PROD ========= */
         stage("Deploy PROD") {
             when { branch "master" }
             steps {
                 sh """
-                    helm upgrade --install fastapiapp ./charts \
+                    helm upgrade --install jenkins-exam-prod ./charts/jenkins-exam \
                         --namespace prod \
                         --create-namespace \
                         -f charts/values-prod.yaml \

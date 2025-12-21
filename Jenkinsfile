@@ -8,23 +8,14 @@ pipeline {
 
     stages {
 
+        /*********** CHECKOUT ***********/
         stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
-        stage("Test Infra") {
-            steps {
-                sh """
-                    whoami
-                    docker --version
-                    kubectl get nodes
-                    helm version
-                """
-            }
-        }
-
+        /*********** BUILD ***********/
         stage("Build Docker Images") {
             steps {
                 sh """
@@ -34,8 +25,8 @@ pipeline {
             }
         }
 
+        /*********** PUSH ***********/
         stage("Push Docker Images") {
-            when { branch "dev" }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub',
@@ -52,6 +43,7 @@ pipeline {
             }
         }
 
+        /*********** DEPLOY DEV ***********/
         stage("Deploy DEV") {
             when { branch "dev" }
             steps {
@@ -68,6 +60,7 @@ pipeline {
             }
         }
 
+        /*********** DEPLOY QA ***********/
         stage("Deploy QA") {
             when { branch "qa" }
             steps {
@@ -84,6 +77,7 @@ pipeline {
             }
         }
 
+        /*********** DEPLOY STAGING ***********/
         stage("Deploy STAGING") {
             when { branch "staging" }
             steps {
@@ -100,13 +94,15 @@ pipeline {
             }
         }
 
+        /*********** APPROVAL PROD ***********/
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Valider PROD ?", ok: "Déployer"
+                input message: "Valider le déploiement PROD ?", ok: "Déployer PROD"
             }
         }
 
+        /*********** DEPLOY PROD ***********/
         stage("Deploy PROD") {
             when { branch "master" }
             steps {

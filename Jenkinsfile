@@ -43,7 +43,7 @@ pipeline {
             when { branch "dev" }
             steps {
                 sh """
-                    helm upgrade --install ${RELEASE_NAME}-dev ./charts \
+                    helm upgrade --install jenkins-exam ./charts \
                         --namespace dev \
                         --create-namespace \
                         -f charts/values-dev.yaml \
@@ -59,7 +59,7 @@ pipeline {
             when { branch "qa" }
             steps {
                 sh """
-                    helm upgrade --install ${RELEASE_NAME}-qa ./charts \
+                    helm upgrade --install jenkins-exam ./charts \
                         --namespace qa \
                         --create-namespace \
                         -f charts/values-qa.yaml \
@@ -75,7 +75,7 @@ pipeline {
             when { branch "staging" }
             steps {
                 sh """
-                    helm upgrade --install ${RELEASE_NAME}-staging ./charts \
+                    helm upgrade --install jenkins-exam ./charts \
                         --namespace staging \
                         --create-namespace \
                         -f charts/values-staging.yaml \
@@ -98,7 +98,7 @@ pipeline {
             when { branch "master" }
             steps {
                 sh """
-                    helm upgrade --install ${RELEASE_NAME}-prod ./charts \
+                    helm upgrade --install jenkins-exam ./charts \
                         --namespace prod \
                         --create-namespace \
                         -f charts/values-prod.yaml \

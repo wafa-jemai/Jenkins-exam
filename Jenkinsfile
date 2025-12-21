@@ -9,7 +9,20 @@ pipeline {
     stages {
 
         stage("Checkout") {
-            steps { checkout scm }
+            steps {
+                checkout scm
+            }
+        }
+
+        stage("Test Infra") {
+            steps {
+                sh """
+                    whoami
+                    docker --version
+                    kubectl get nodes
+                    helm version
+                """
+            }
         }
 
         stage("Build Docker Images") {
@@ -90,7 +103,7 @@ pipeline {
         stage("Approval PROD") {
             when { branch "master" }
             steps {
-                input message: "Valider le déploiement PROD ?", ok: "Déployer"
+                input message: "Valider PROD ?", ok: "Déployer"
             }
         }
 
@@ -112,7 +125,11 @@ pipeline {
     }
 
     post {
-        success { echo "✅ Pipeline success on ${BRANCH_NAME}" }
-        failure { echo "❌ Pipeline failed on ${BRANCH_NAME}" }
+        success {
+            echo "✅ Pipeline success on ${BRANCH_NAME}"
+        }
+        failure {
+            echo "❌ Pipeline failed on ${BRANCH_NAME}"
+        }
     }
 }

@@ -9,3 +9,9 @@ cast:
   image:
     repository: wafajemai/jenkins-devops
     tag: "cast.staging"
+
+service:
+  type: NodePort
+  port: 80
+  nodePort: 30083
+  targetPort: 8000

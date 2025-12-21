@@ -9,3 +9,9 @@ cast:
   image:
     repository: wafajemai/jenkins-devops
     tag: "cast.prod"
+
+service:
+  type: NodePort
+  port: 80
+  nodePort: 30084
+  targetPort: 8000

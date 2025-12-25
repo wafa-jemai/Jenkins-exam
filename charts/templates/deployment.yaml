@@ -2,22 +2,20 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "jenkins-exam.fullname" . }}
-  labels:
-    {{- include "jenkins-exam.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "jenkins-exam.selectorLabels" . | nindent 6 }}
+      app: {{ include "jenkins-exam.name" . }}
   template:
     metadata:
       labels:
-        {{- include "jenkins-exam.selectorLabels" . | nindent 8 }}
+        app: {{ include "jenkins-exam.name" . }}
     spec:
+      serviceAccountName: {{ include "jenkins-exam.serviceAccountName" . }}
       containers:
         - name: movie-service
           image: "{{ .Values.movie.image.repository }}:{{ .Values.movie.image.tag }}"
-          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           env:
@@ -26,7 +24,6 @@ spec:
 
         - name: cast-service
           image: "{{ .Values.cast.image.repository }}:{{ .Values.cast.image.tag }}"
-          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
           env:

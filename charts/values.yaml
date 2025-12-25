@@ -4,11 +4,13 @@ movie:
   image:
     repository: wafajemai/jenkins-devops
     tag: "movie.latest"
+    pullPolicy: IfNotPresent
 
 cast:
   image:
     repository: wafajemai/jenkins-devops
     tag: "cast.latest"
+    pullPolicy: IfNotPresent
 
 service:
   type: NodePort
@@ -16,14 +18,15 @@ service:
   targetPort: 8000
 
 env:
-  DATABASE_URL: "sqlite:////data/db.sqlite3"
+  DATABASE_URL: "sqlite:///./app/api/db.sqlite3"
 
-ingress:
-  enabled: false
+serviceAccount:
+  create: true
+  name: ""
 
 autoscaling:
   enabled: false
 
-serviceAccount:
-  create: true
+ingress:
+  enabled: false
 

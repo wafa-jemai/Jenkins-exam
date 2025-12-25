@@ -3,13 +3,13 @@ replicaCount: 1
 movie:
   image:
     repository: wafajemai/jenkins-devops
-    tag: "movie.latest"
+    tag: movie.latest
     pullPolicy: IfNotPresent
 
 cast:
   image:
     repository: wafajemai/jenkins-devops
-    tag: "cast.latest"
+    tag: cast.latest
     pullPolicy: IfNotPresent
 
 service:
@@ -18,7 +18,7 @@ service:
   targetPort: 8000
 
 env:
-  DATABASE_URL: "sqlite:///./app/api/db.sqlite3"
+  DATABASE_URL: "sqlite:///./db.sqlite3"
 
 serviceAccount:
   create: true

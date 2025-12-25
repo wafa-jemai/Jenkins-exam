@@ -1,14 +1,14 @@
-replicaCount: 4
+replicaCount: 2
 
 movie:
   image:
     repository: wafajemai/jenkins-devops
-    tag: "movie-prod"
+    tag: "movie.prod"
 
 cast:
   image:
     repository: wafajemai/jenkins-devops
-    tag: "cast-prod"
+    tag: "cast.prod"
 
 service:
   type: NodePort
@@ -18,14 +18,4 @@ service:
 
 env:
   DATABASE_URL: "sqlite:///./app/api/db.sqlite3"
-
-serviceAccount:
-  create: true
-  name: ""
-
-autoscaling:
-  enabled: false
-
-ingress:
-  enabled: false
 

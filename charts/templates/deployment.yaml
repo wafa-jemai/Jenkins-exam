@@ -14,10 +14,10 @@ spec:
       labels:
         {{- include "jenkins-exam.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "jenkins-exam.serviceAccountName" . }}
       containers:
         - name: movie-service
           image: "{{ .Values.movie.image.repository }}:{{ .Values.movie.image.tag }}"
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           env:
@@ -26,5 +26,10 @@ spec:
 
         - name: cast-service
           image: "{{ .Values.cast.image.repository }}:{{ .Values.cast.image.tag }}"
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
+          env:
+            - name: DATABASE_URL
+              value: "{{ .Values.env.DATABASE_URL }}"
+

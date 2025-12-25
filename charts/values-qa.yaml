@@ -1,4 +1,4 @@
-replicaCount: 1
+replicaCount: 2
 
 movie:
   image:
@@ -17,5 +17,4 @@ service:
   targetPort: 8000
 
 env:
-  DATABASE_URL: "sqlite:///./app/api/db.sqlite3"
-
+  DATABASE_URL: "sqlite:////data/qa.db"

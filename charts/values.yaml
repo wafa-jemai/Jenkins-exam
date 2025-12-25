@@ -1,7 +1,4 @@
-ingress:
-  enabled: false
-
-replicaCount: 3
+replicaCount: 1
 
 movie:
   image:
@@ -18,31 +15,18 @@ cast:
 service:
   type: NodePort
   port: 80
-  nodePort: 30081
   targetPort: 8000
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
+env:
+  DATABASE_URL: "sqlite:///./app/api/db.sqlite3"
 
 serviceAccount:
   create: true
-  annotations: {}
   name: ""
-
-podAnnotations: {}
-
-podSecurityContext: {}
-securityContext: {}
-
-resources: {}
 
 autoscaling:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
 
-nodeSelector: {}
-tolerations: []
-affinity: {}
+ingress:
+  enabled: false
+

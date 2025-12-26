@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "jenkins-exam.fullname" . }}
+  labels:
+    app: {{ include "jenkins-exam.name" . }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -12,21 +14,22 @@ spec:
       labels:
         app: {{ include "jenkins-exam.name" . }}
     spec:
-      serviceAccountName: {{ include "jenkins-exam.serviceAccountName" . }}
       containers:
         - name: movie-service
           image: "{{ .Values.movie.image.repository }}:{{ .Values.movie.image.tag }}"
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           env:
             - name: DATABASE_URL
-              value: "{{ .Values.env.DATABASE_URL }}"
+              value: {{ .Values.env.DATABASE_URL | quote }}
 
         - name: cast-service
           image: "{{ .Values.cast.image.repository }}:{{ .Values.cast.image.tag }}"
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
           env:
             - name: DATABASE_URL
-              value: "{{ .Values.env.DATABASE_URL }}"
+              value: {{ .Values.env.DATABASE_URL | quote }}
 

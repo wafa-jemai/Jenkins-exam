@@ -2,15 +2,32 @@ replicaCount: 1
 
 movie:
   image:
-    tag: "movie.dev"
+    repository: wafajemai/jenkins-devops
+    tag: movie.dev
+    pullPolicy: IfNotPresent
 
 cast:
   image:
-    tag: "cast.dev"
+    repository: wafajemai/jenkins-devops
+    tag: cast.dev
+    pullPolicy: IfNotPresent
 
 service:
-  nodePort: 30081
+  type: NodePort
+  port: 80
+  targetPort: 8000
+  nodePort: 31124
 
 env:
   DATABASE_URL: "sqlite:///./app/api/db.sqlite3"
+
+serviceAccount:
+  create: true
+  name: ""
+
+autoscaling:
+  enabled: false
+
+ingress:
+  enabled: false
 

@@ -12,13 +12,13 @@ cast:
     tag: cast.latest
     pullPolicy: IfNotPresent
 
-env:
-  DATABASE_URL: "sqlite:///./app/api/db.sqlite3"
-
 service:
   type: NodePort
   port: 80
   targetPort: 8000
+
+env:
+  DATABASE_URL: "sqlite:///./app/api/db.sqlite3"
 
 serviceAccount:
   create: true

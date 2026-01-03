@@ -38,6 +38,8 @@ spec:
           env:
             - name: SERVICE_NAME
               value: "movie"
+            - name: DATABASE_URL
+              value: {{ .Values.env.DATABASE_URL | quote }}
 
         - name: cast-service
           image: "{{ .Values.cast.image.repository }}:{{ .Values.cast.image.tag }}"
@@ -47,6 +49,8 @@ spec:
           env:
             - name: SERVICE_NAME
               value: "cast"
+            - name: DATABASE_URL
+              value: {{ .Values.env.DATABASE_URL | quote }}
 
       {{- with .Values.nodeSelector }}
       nodeSelector:

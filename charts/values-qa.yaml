@@ -9,3 +9,13 @@ cast:
   image:
     repository: wafajemai/jenkins-devops
     tag: "cast.qa"
+
+serviceAccount:
+  create: true
+  name: ""
+
+autoscaling:
+  enabled: false
+
+ingress:
+  enabled: false

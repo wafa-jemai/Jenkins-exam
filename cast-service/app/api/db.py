@@ -1,21 +1,19 @@
 import os
-
-from sqlalchemy import (Column, Integer, MetaData, String, Table,
-                        create_engine, ARRAY)
-
+from sqlalchemy import create_engine, MetaData
 from databases import Database
 
-DATABASE_URI = os.getenv('DATABASE_URI')
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URI)
-metadata = MetaData()
+if not DATABASE_URL:
+    raise Exception("DATABASE_URL must be set")
 
-casts = Table(
-    'casts',
-    metadata,
-    Column('id', Integer, primary_key=True),
-    Column('name', String(50)),
-    Column('nationality', String(20)),
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False}
+    if DATABASE_URL.startswith("sqlite")
+    else {}
 )
 
-database = Database(DATABASE_URI)
+metadata = MetaData()
+database = Database(DATABASE_URL)
+

@@ -3,66 +3,33 @@ kind: Deployment
 metadata:
   name: {{ include "jenkins-exam.fullname" . }}
   labels:
-    {{- include "jenkins-exam.labels" . | nindent 4 }}
+    app: {{ include "jenkins-exam.name" . }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
-      {{- include "jenkins-exam.selectorLabels" . | nindent 6 }}
+      app: {{ include "jenkins-exam.name" . }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       labels:
-        {{- include "jenkins-exam.selectorLabels" . | nindent 8 }}
+        app: {{ include "jenkins-exam.name" . }}
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-
-      serviceAccountName: {{ include "jenkins-exam.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
-
       containers:
         - name: movie-service
           image: "{{ .Values.movie.image.repository }}:{{ .Values.movie.image.tag }}"
-          imagePullPolicy: {{ .Values.movie.image.pullPolicy | default "IfNotPresent" }}
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           env:
-            - name: SERVICE_NAME
-              value: "movie"
             - name: DATABASE_URL
               value: {{ .Values.env.DATABASE_URL | quote }}
 
         - name: cast-service
           image: "{{ .Values.cast.image.repository }}:{{ .Values.cast.image.tag }}"
-          imagePullPolicy: {{ .Values.cast.image.pullPolicy | default "IfNotPresent" }}
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
           env:
-            - name: SERVICE_NAME
-              value: "cast"
             - name: DATABASE_URL
               value: {{ .Values.env.DATABASE_URL | quote }}
 
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}

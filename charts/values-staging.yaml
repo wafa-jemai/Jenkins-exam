@@ -1,15 +1,21 @@
-replicaCount: 2
+replicaCount: 1
 
 movie:
   image:
-    repository: wafajemai/jenkins-devops
-    tag: "movie.staging"
+    tag: movie.staging
 
 cast:
   image:
-    repository: wafajemai/jenkins-devops
-    tag: "cast.staging"
+    tag: cast.staging
 
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8000
+  nodePort: 30083
+
+env:
+  DATABASE_URL: "sqlite:///./app/api/db.sqlite3"
 
 serviceAccount:
   create: true
@@ -20,3 +26,4 @@ autoscaling:
 
 ingress:
   enabled: false
+

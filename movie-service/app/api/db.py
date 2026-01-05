@@ -1,14 +1,27 @@
 import os
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import (
+    MetaData, Table, Column, Integer, String
+)
 from databases import Database
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app/api/db.sqlite3")
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+database = Database(DATABASE_URL)
+metadata = MetaData()
+
+movies = Table(
+    "movies",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("title", String),
+    Column("description", String),
 )
 
-metadata = MetaData()
-database = Database(DATABASE_URL)
+casts = Table(
+    "casts",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("movie_id", Integer),
+    Column("actor", String),
+)
 

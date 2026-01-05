@@ -8,9 +8,7 @@ pipeline {
   stages {
 
     stage("Checkout") {
-      steps {
-        checkout scm
-      }
+      steps { checkout scm }
     }
 
     stage("Build Images") {
@@ -75,14 +73,6 @@ pipeline {
             --set movie.image.tag=movie.$BUILD_NUMBER \
             --set cast.image.tag=cast.$BUILD_NUMBER
         """
-      }
-    }
-
-    stage("Approval PROD") {
-      when { branch "master" }
-      agent none     
-      steps {
-        input message: "Valider le déploiement PROD ?"
       }
     }
 

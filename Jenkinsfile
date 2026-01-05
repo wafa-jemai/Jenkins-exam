@@ -84,17 +84,18 @@ pipeline {
     }
 
     stage("Deploy PROD") {
-      when { branch "master" }
-      steps {
-        sh """
-          helm upgrade --install jenkins-exam ./charts \
-            -n prod --create-namespace \
-            -f charts/values-prod.yaml \
-            --set movie.image.tag=movie.$BUILD_NUMBER \
-            --set cast.image.tag=cast.$BUILD_NUMBER
-        """
-      }
-    }
+  when { branch "master" }
+  steps {
+    sh """
+      helm upgrade --install jenkins-exam ./charts \
+        -n prod --create-namespace \
+        -f charts/values-prod.yaml \
+        --set movie.image.tag=movie.$BUILD_NUMBER \
+        --set cast.image.tag=cast.$BUILD_NUMBER
+    """
+  }
+}
+
   }
 }
 
